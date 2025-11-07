@@ -121,6 +121,34 @@ class Intent:
 
 
 @dataclass
+class ActionResult:
+    """
+    Result of a single action execution.
+
+    Day 3: Used by automation modules to report execution results.
+    """
+
+    success: bool
+    error: Optional[str] = None
+    details: Dict[str, Any] = field(default_factory=dict)
+    execution_time_ms: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary for logging.
+
+        Returns:
+            Dictionary representation
+        """
+        return {
+            "success": self.success,
+            "error": self.error,
+            "details": self.details,
+            "execution_time_ms": self.execution_time_ms
+        }
+
+
+@dataclass
 class IntentResult:
     """
     Result of an executed intent.

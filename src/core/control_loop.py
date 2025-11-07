@@ -79,8 +79,10 @@ class ControlLoop:
         )
 
         # Day 2: Initialize intent parser and executor
+        # Day 3: Support dry_run mode from settings
+        dry_run = settings.get("safety", {}).get("dry_run", False)
         self.intent_parser = IntentParser(logger=logger)
-        self.executor = ActionExecutor(logger=logger, settings=settings)
+        self.executor = ActionExecutor(logger=logger, settings=settings, dry_run=dry_run)
 
         self.running = False
         self.iteration_count = 0
@@ -209,16 +211,29 @@ class ControlLoop:
                     policy_decision = self.policy_engine.check_intent(parsed_intent)
                     print(f"[Policy] Decision: {policy_decision}")
 
-                    # Day 2: EXECUTE phase (stubbed)
+                    # Day 3: EXECUTE phase (REAL EXECUTION)
                     if policy_decision.allowed:
                         print(f"\n{'=' * 60}")
-                        print("EXECUTION (STUBBED - Day 3):")
+                        mode_label = "DRY RUN" if self.executor.dry_run else "EXECUTING"
+                        print(f"{mode_label}:")
                         print(f"{'=' * 60}\n")
 
-                        # Day 3 will actually execute
-                        # For now, just dry run
-                        dry_run = self.executor.dry_run_plan(action_plan)
-                        print(dry_run)
+                        # Day 3: Real execution
+                        try:
+                            result = self.executor.execute_plan(action_plan)
+                            print(f"\n[Execution] {'DRY RUN ' if self.executor.dry_run else ''}Result: {'SUCCESS' if result.success else 'FAILED'}")
+                            if result.error:
+                                print(f"[Execution] Error: {result.error}")
+                            if result.output:
+                                print(f"[Execution] Output: {result.output}")
+                            print(f"[Execution] Time: {result.execution_time_ms:.2f}ms")
+                        except Exception as e:
+                            print(f"[Execution] FAILED: {e}")
+                            self.logger.log_event(
+                                event_type="execution_failed",
+                                data={"error": str(e)},
+                                status="error"
+                            )
                     else:
                         print(f"\n[Policy] Action blocked: {policy_decision.reason}")
                         if policy_decision.requires_approval:

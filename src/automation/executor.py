@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 from core.action_planner import ActionPlan, ActionStep
-from intents.intent_schema import IntentResult
+from intents.intent_schema import IntentResult, ActionResult
 from automation.desktop import DesktopAutomation
 from automation.vscode import VSCodeAutomation
 from automation.windows import WindowsAutomation
@@ -24,23 +24,24 @@ class ActionExecutor:
     """
     Executes action plans by dispatching to automation modules.
 
-    Day 2: All execution is stubbed with logging only.
-    Day 3: Will implement actual pyautogui/pywinauto calls.
+    Day 3: Real execution with pyautogui/pywinauto, with dry_run support.
     """
 
-    def __init__(self, logger: AegisLogger, settings: Dict[str, Any]):
+    def __init__(self, logger: AegisLogger, settings: Dict[str, Any], dry_run: bool = False):
         """
         Initialize action executor.
 
         Args:
             logger: Logging system
             settings: System settings
+            dry_run: If True, simulate actions without executing (Day 3)
         """
         self.logger = logger
         self.settings = settings
+        self.dry_run = dry_run
 
-        # Initialize automation modules
-        self.desktop = DesktopAutomation(logger, settings)
+        # Initialize automation modules with dry_run flag
+        self.desktop = DesktopAutomation(logger, settings, dry_run=dry_run)
         self.vscode = VSCodeAutomation(logger, settings, self.desktop)
         self.windows = WindowsAutomation(logger, settings)
 
@@ -183,26 +184,48 @@ class ActionExecutor:
             )
             raise ExecutionError(f"Step {step.step_id} failed: {e}")
 
-    def _execute_desktop_action(self, step: ActionStep) -> None:
-        """Execute desktop automation action."""
-        # # EXEC_HOOK: Day 3 will call actual methods
+    def _execute_desktop_action(self, step: ActionStep) -> ActionResult:
+        """
+        Execute desktop automation action.
+
+        Day 3: Real execution with ActionResult return.
+
+        Args:
+            step: ActionStep to execute
+
+        Returns:
+            ActionResult with execution status
+        """
         function = step.function
         params = step.parameters
 
         if function == "mouse_click":
-            # self.desktop.mouse_click(params['x'], params['y'], params.get('button', 'left'))
-            print(f"[Desktop] Would click at ({params.get('x')}, {params.get('y')})")
+            # Day 3: Real execution
+            return self.desktop.mouse_click(
+                params.get('x', 0),
+                params.get('y', 0),
+                params.get('button', 'left'),
+                params.get('clicks', 1)
+            )
 
         elif function == "keyboard_type":
-            # self.desktop.keyboard_type(params['text'])
-            print(f"[Desktop] Would type: {params.get('text', '')[:50]}...")
+            # Day 3: Real execution
+            return self.desktop.keyboard_type(
+                params.get('text', ''),
+                params.get('interval', 0.0)
+            )
 
         elif function == "screenshot":
-            # path = self.desktop.screenshot(params.get('output_path'))
-            print(f"[Desktop] Would take screenshot → {params.get('output_path', 'auto')}")
+            # Day 3: Real execution
+            return self.desktop.screenshot(params.get('output_path'))
 
         else:
-            print(f"[Desktop] Would execute: {function}({params})")
+            # Unknown function - return success but log warning
+            print(f"[Desktop] Unknown function: {function}({params})")
+            return ActionResult(
+                success=True,
+                details={"function": function, "note": "Unknown function, skipped"}
+            )
 
     def _execute_vscode_action(self, step: ActionStep) -> None:
         """Execute VS Code automation action."""
