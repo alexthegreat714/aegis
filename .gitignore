@@ -1,0 +1,28 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual envs
+venv/
+env/
+.env
+.envrc
+
+# IDE
+.vscode/
+.idea/
+
+# Logs & runtime db
+*.db
+*.log
+data/**
+!data/.gitkeep
+
+# Config secrets
+config/.owui_token
+
+# Sandbox scratch
+sandbox/output/**
+sandbox/tmp/**

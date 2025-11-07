@@ -1,0 +1,88 @@
+# Aegis Task List (Sample)
+
+name: "Aegis Phase 4 Implementation"
+description: "Complete Phase 4 control loop implementation and testing"
+version: "1.0"
+created: "2025-01-06"
+updated: "2025-01-06"
+
+tasks:
+  - id: "task_1"
+    description: "Implement control_loop._observe() method"
+    status: "completed"
+    priority: "high"
+    risk: "low"
+    depends_on: []
+    notes: "Gather system state: screenshot, active window, logs, system status"
+
+  - id: "task_2"
+    description: "Implement control_loop._think() method with aegis_reasoning_call"
+    status: "completed"
+    priority: "high"
+    risk: "low"
+    depends_on: ["task_1"]
+    notes: "Call LLM via OWUI, parse response into intents"
+
+  - id: "task_3"
+    description: "Auto-load README_SPEC.md at startup"
+    status: "completed"
+    priority: "high"
+    risk: "low"
+    depends_on: []
+    notes: "Load binding system policy from README_SPEC.md into settings"
+
+  - id: "task_4"
+    description: "Create tasklist.yaml parser"
+    status: "completed"
+    priority: "medium"
+    risk: "low"
+    depends_on: []
+    notes: "Parse project task lists with dependencies and status tracking"
+
+  - id: "task_5"
+    description: "Add --talk mode for CLI"
+    status: "pending"
+    priority: "medium"
+    risk: "low"
+    depends_on: []
+    notes: "Interactive talk mode for conversations with Aegis"
+
+  - id: "task_6"
+    description: "Add basic project queue executor"
+    status: "pending"
+    priority: "medium"
+    risk: "low"
+    depends_on: ["task_4", "task_5"]
+    notes: "Read-only queue executor for project tasks"
+
+  - id: "task_7"
+    description: "Test interactive mode with policy query"
+    status: "pending"
+    priority: "high"
+    risk: "low"
+    depends_on: ["task_1", "task_2", "task_3"]
+    notes: "Test: python aegis.py --interactive --prompt 'what is your current policy mode?'"
+
+  - id: "task_8"
+    description: "Integrate InteractivePause into control loop"
+    status: "pending"
+    priority: "high"
+    risk: "medium"
+    depends_on: ["task_2"]
+    notes: "Add pause windows after LLM reasoning in _run_iteration()"
+
+  - id: "task_9"
+    description: "Integrate SandboxRevisionManager into control loop"
+    status: "pending"
+    priority: "high"
+    risk: "medium"
+    depends_on: ["task_8"]
+    notes: "Create revision bundles for file-modifying intents"
+
+  - id: "task_10"
+    description: "Implement _decide() phase in control loop"
+    status: "pending"
+    priority: "high"
+    risk: "medium"
+    depends_on: ["task_2", "task_8"]
+    notes: "Policy check, action planning, approval routing"

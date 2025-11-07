@@ -1,0 +1,9 @@
+# Ignore all data files
+*.db
+*.jsonl
+*.log
+screenshots/
+logs/
+
+# Keep directory structure
+!.gitignore

@@ -1,0 +1,58 @@
+# Aegis System Settings
+
+# OpenWebUI API Configuration
+owui:
+  base_url: "http://127.0.0.1:3000"
+  endpoint: "/api/chat/completions"
+  # Token should be stored in a separate file, path specified here
+  token_file: "config/.owui_token"
+  timeout_seconds: 30
+  model: "agentica-org_DeepCoder-14B-Preview-Q8_0:latest"  # DeepSeek Coder model
+
+# Paths
+paths:
+  data_dir: "data"
+  logs_dir: "data/logs"
+  db_path: "data/aegis.db"
+  sandbox_dir: "sandbox/scratch"
+
+# Logging Configuration
+logging:
+  jsonl_enabled: true
+  sqlite_enabled: true
+  log_level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+  max_log_files: 30  # Keep last N days of JSONL logs
+  rotate_logs_daily: true
+
+# Control Loop Settings
+control_loop:
+  max_iterations: 100
+  sleep_between_actions_ms: 500
+  enable_heartbeat: true
+  heartbeat_interval_seconds: 60
+
+# Desktop Automation Settings
+automation:
+  screenshot_on_action: true
+  screenshot_dir: "data/screenshots"
+  action_delay_ms: 100  # Delay before UI actions
+  typing_speed_chars_per_second: 50
+
+# VS Code Settings
+vscode:
+  window_title_pattern: "Visual Studio Code"
+  terminal_prompt_pattern: "PS C:"  # PowerShell prompt
+  command_timeout_seconds: 30
+
+# Safety Settings
+safety:
+  enable_sandbox_check: true
+  require_path_validation: true
+  max_consecutive_failures: 5
+  emergency_stop_keyword: "AEGIS_STOP"
+
+# Future: Scheduler settings (not implemented yet)
+scheduler:
+  enabled: false
+  nightly_run_hour: 2  # 2 AM
+  task_queue_path: "data/task_queue.json"
