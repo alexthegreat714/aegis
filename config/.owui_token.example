@@ -1,0 +1,14 @@
+# OpenWebUI Bearer Token
+#
+# Replace this file with your actual token file: .owui_token
+#
+# To get your token:
+# 1. Open OpenWebUI in browser (http://127.0.0.1:3000)
+# 2. Open browser developer tools (F12)
+# 3. Go to Application/Storage > Local Storage
+# 4. Find 'token' key
+# 5. Copy the value (without quotes)
+# 6. Paste it in config/.owui_token file
+#
+# The token should be a long string like:
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

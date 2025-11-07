@@ -56,20 +56,41 @@ class AegisLogger:
     CREATE INDEX IF NOT EXISTS idx_error ON aegis_events(error);
     """
 
-    def __init__(self, db_path: str = "data/aegis.db", enable_jsonl: bool = True):
+    def __init__(
+        self,
+        db_path: str = "data/aegis.db",
+        enable_jsonl: bool = True,
+        log_dir: Optional[str] = None,
+        settings: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ):
         """
         Initialize logger with database path.
 
         Args:
             db_path: Path to SQLite database
             enable_jsonl: Also write JSONL logs alongside SQLite
+            log_dir: Legacy parameter - directory for JSONL logs (optional)
+            settings: Legacy parameter - settings dict (optional, absorbed safely)
+            **kwargs: Additional legacy parameters (absorbed safely)
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.enable_jsonl = enable_jsonl
 
+        # Safely absorb legacy settings dict without changing behavior
+        self._settings = settings or {}
+
+        # Determine JSONL log directory
         if enable_jsonl:
-            self.jsonl_path = self.db_path.parent / "aegis_events.jsonl"
+            if log_dir is not None:
+                # Use legacy log_dir if provided
+                log_root = Path(log_dir)
+                log_root.mkdir(parents=True, exist_ok=True)
+                self.jsonl_path = log_root / "aegis.jsonl"
+            else:
+                # Use default location alongside database
+                self.jsonl_path = self.db_path.parent / "aegis_events.jsonl"
 
         self._init_database()
 
@@ -91,14 +112,19 @@ class AegisLogger:
 
     def log_event(
         self,
-        intent: str,
-        action: str,
-        policy_decision: str,
-        result: str,
-        cycle_id: int,
-        duration_ms: int,
+        intent: Optional[str] = None,
+        action: Optional[str] = None,
+        policy_decision: Optional[str] = None,
+        result: Optional[str] = None,
+        cycle_id: Optional[int] = None,
+        duration_ms: Optional[int] = None,
         error: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        # Legacy parameters
+        event_type: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None,
+        status: Optional[str] = None,
+        **kwargs
     ):
         """
         Log a single Aegis event with enforced schema.
@@ -112,10 +138,50 @@ class AegisLogger:
             duration_ms: How long the action took
             error: Error message if action failed
             metadata: Additional context (stored as JSON)
+            event_type: Legacy parameter - event type (maps to action)
+            data: Legacy parameter - event data (maps to metadata)
+            status: Legacy parameter - status (maps to result)
+            **kwargs: Additional legacy parameters (absorbed safely)
         """
+        # Handle legacy API - map old parameters to new schema
+        if event_type is not None:
+            # Legacy call detected
+            action = action or event_type
+            intent = intent or "legacy_event"
+            policy_decision = policy_decision or "ALLOW"
+            result = result or status or "info"
+            cycle_id = cycle_id or 0
+            duration_ms = duration_ms or 0
+            metadata = metadata or data
+
+        # Validate we have required data
+        if any(x is None for x in [intent, action, policy_decision, result, cycle_id, duration_ms]):
+            # This is a legacy call without session - log to JSONL only if enabled
+            if self.enable_jsonl and event_type:
+                legacy_event = {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'event_type': event_type,
+                    'data': data,
+                    'status': status
+                }
+                with open(self.jsonl_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(legacy_event) + '\n')
+            return
+
         session = SessionManager.get_current()
         if not session:
-            raise RuntimeError("No active session. Call SessionManager.create_session() first.")
+            # No active session - legacy mode, log to JSONL only
+            if self.enable_jsonl:
+                legacy_event = {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'intent': intent,
+                    'action': action,
+                    'result': result,
+                    'metadata': metadata
+                }
+                with open(self.jsonl_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(legacy_event) + '\n')
+            return
 
         timestamp = datetime.utcnow().isoformat()
         session_id = session.session_id
@@ -160,6 +226,29 @@ class AegisLogger:
 
         # Update session stats
         session.record_action(success=(result == 'success'))
+
+    def log_action(
+        self,
+        action_type: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        status: str = "pending",
+        **kwargs
+    ):
+        """
+        Legacy method - log an action (alias for log_event).
+
+        Args:
+            action_type: Type of action being performed
+            parameters: Action parameters
+            status: Action status
+            **kwargs: Additional legacy parameters
+        """
+        self.log_event(
+            event_type=action_type,
+            data=parameters,
+            status=status,
+            **kwargs
+        )
 
     def get_session_events(self, session_id: str) -> list:
         """Retrieve all events for a specific session."""

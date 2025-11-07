@@ -31,7 +31,9 @@ class ControlLoop:
         self,
         logger: Optional[AegisLogger] = None,
         config: Optional[ConfigLoader] = None,
-        mode: str = "normal"
+        mode: str = "normal",
+        settings: Optional[Dict[str, Any]] = None,
+        **kwargs
     ):
         """
         Initialize control loop.
@@ -40,6 +42,8 @@ class ControlLoop:
             logger: AegisLogger instance (creates default if None)
             config: ConfigLoader instance (creates default if None)
             mode: Operation mode (normal, sandbox, assist, replay)
+            settings: Legacy parameter - settings dict (optional, absorbed safely)
+            **kwargs: Additional legacy parameters (absorbed safely)
         """
         self.config = config or ConfigLoader()
         self.logger = logger or AegisLogger(
@@ -49,6 +53,9 @@ class ControlLoop:
         self.mode = mode
         self.session: Optional[AegisSession] = None
         self.health_monitor = HealthMonitor()
+
+        # Safely absorb legacy settings dict
+        self._settings = settings or {}
 
         # Load config values
         self.max_cycles = self.config.get('control_loop.max_cycles', 100)

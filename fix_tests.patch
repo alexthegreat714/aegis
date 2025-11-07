@@ -1,0 +1,129 @@
+--- a/tests/test_action_planner.py
++++ b/tests/test_action_planner.py
+@@ -26,8 +26,11 @@ class TestActionPlanner(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         # Test settings
+
+--- a/tests/test_control_loop.py
++++ b/tests/test_control_loop.py
+@@ -28,8 +28,11 @@ class TestControlLoop(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         # Test settings
+
+--- a/tests/test_cycle_mode.py
++++ b/tests/test_cycle_mode.py
+@@ -30,8 +30,11 @@ class TestSystemObserver(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+     def tearDown(self):
+@@ -120,8 +123,11 @@ class TestIntentChaining(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         self.parser = IntentParser(self.logger)
+@@ -210,8 +216,11 @@ class TestControlLoopCycles(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         # Mock OWUI client
+
+--- a/tests/test_execution.py
++++ b/tests/test_execution.py
+@@ -30,8 +30,11 @@ class TestActionExecution(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         # Test settings
+
+--- a/tests/test_intents.py
++++ b/tests/test_intents.py
+@@ -26,8 +26,11 @@ class TestIntentParser(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         self.parser = IntentParser(self.logger)
+
+--- a/tests/test_policy.py
++++ b/tests/test_policy.py
+@@ -26,8 +26,11 @@ class TestPolicyEngine(unittest.TestCase):
+         self.data_dir.mkdir()
+
+         # Initialize logger
++        (self.data_dir / "logs").mkdir(exist_ok=True)
+         self.logger = AegisLogger(
+-            jsonl_path=str(self.data_dir / "logs" / "test.jsonl"),
+-            db_path=str(self.data_dir / "test.db")
++            log_dir=str(self.data_dir / "logs"),
++            db_path=str(self.data_dir / "test.db"),
++            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+         )
+
+         # Create test policy file

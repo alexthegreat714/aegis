@@ -1,0 +1,63 @@
+# Aegis Policy Configuration
+# Defines what actions are allowed, blocked, or require human approval
+
+# Operation mode: assist | execute | autonomous
+mode: assist
+
+# Action policies
+# Values: allow | block | require_approval
+actions:
+  desktop:
+    mouse_click: allow
+    mouse_move: allow
+    keyboard_type: allow
+    screenshot: allow
+    window_focus: allow
+    window_close: require_approval
+    window_minimize: allow
+
+  vscode:
+    open_file: allow
+    open_terminal: allow
+    run_command: require_approval
+    close_tab: allow
+    save_file: require_approval
+
+  filesystem:
+    file_read: allow
+    file_write: require_approval
+    file_delete: block
+    directory_create: require_approval
+    directory_delete: block
+
+  system:
+    process_list: allow
+    process_kill: block
+    service_stop: block
+    service_start: block
+    registry_read: allow
+    registry_write: block
+
+# Sandbox-only actions (never allowed outside sandbox/)
+sandbox_only:
+  - file_delete
+  - directory_delete
+  - process_kill
+
+# Restricted paths (never allow access)
+restricted_paths:
+  - "C:\\Windows\\System32"
+  - "C:\\Program Files"
+  - "C:\\ProgramData"
+
+# Allowed paths (whitelist for file operations)
+allowed_paths:
+  - "C:\\Users\\blyth\\aegis"
+  - "C:\\Users\\blyth\\Documents"
+  - "C:\\Users\\blyth\\Desktop"
+
+# Logging settings
+logging:
+  require_approval_timeout_seconds: 300
+  log_all_llm_calls: true
+  log_all_actions: true
