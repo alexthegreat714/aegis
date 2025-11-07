@@ -4,9 +4,10 @@ Main control loop for Aegis agent.
 Implements the observe → think → decide → act cycle.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import time
 from datetime import datetime
+from pathlib import Path
 
 from clients.owui_client import OWUIClient
 from aegis_logging.logger import AegisLogger
@@ -213,26 +214,121 @@ class ControlLoop:
         Returns:
             Dictionary containing current observations
         """
+        import psutil
+        import platform
+
         observation = {
             "timestamp": datetime.now().isoformat(),
             "iteration": self.iteration_count,
-            "screenshot": None,  # TODO: Implement screenshot capture
-            "active_window": None,  # TODO: Implement active window detection
-            "recent_logs": [],  # TODO: Query last N log entries from SQLite
+            "screenshot": None,  # Screenshot capture disabled for now (requires UI automation)
+            "active_window": self._get_active_window(),
+            "recent_logs": self._get_recent_logs(limit=5),
             "system_status": {
-                "cpu_percent": None,  # TODO: Use psutil
-                "memory_percent": None,  # TODO: Use psutil
-                "running": self.running
-            }
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
+                "memory_percent": psutil.virtual_memory().percent,
+                "disk_percent": psutil.disk_usage('/').percent,
+                "running": self.running,
+                "platform": platform.system(),
+                "python_version": platform.python_version()
+            },
+            "processes": self._get_process_summary()
         }
 
         self.logger.log_event(
             event_type="observation_gathered",
-            data={"iteration": self.iteration_count},
+            data={
+                "iteration": self.iteration_count,
+                "cpu_percent": observation["system_status"]["cpu_percent"],
+                "memory_percent": observation["system_status"]["memory_percent"]
+            },
             status="info"
         )
 
         return observation
+
+    def _get_active_window(self) -> Optional[str]:
+        """
+        Get active window title (Windows-specific).
+
+        Returns:
+            Window title or None if detection fails
+        """
+        try:
+            import pygetwindow as gw
+            active = gw.getActiveWindow()
+            if active:
+                return active.title
+        except Exception as e:
+            # Window detection not critical, continue without it
+            pass
+        return None
+
+    def _get_recent_logs(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Query recent log entries from SQLite.
+
+        Args:
+            limit: Number of recent logs to retrieve
+
+        Returns:
+            List of recent log entries
+        """
+        try:
+            # Query from SQLite using logger
+            import sqlite3
+            db_path = self.settings.get("paths", {}).get("db_path", "data/aegis.db")
+
+            if not Path(db_path).exists():
+                return []
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT timestamp, event_type, status
+                FROM events
+                ORDER BY id DESC
+                LIMIT ?
+            """, (limit,))
+
+            rows = cursor.fetchall()
+            conn.close()
+
+            return [
+                {"timestamp": row[0], "event_type": row[1], "status": row[2]}
+                for row in rows
+            ]
+        except Exception:
+            return []
+
+    def _get_process_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of running processes.
+
+        Returns:
+            Process summary dictionary
+        """
+        try:
+            import psutil
+            processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+                try:
+                    processes.append({
+                        "pid": proc.info['pid'],
+                        "name": proc.info['name'],
+                        "cpu_percent": proc.info['cpu_percent']
+                    })
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+
+            # Return top 5 CPU consumers
+            processes.sort(key=lambda x: x.get('cpu_percent', 0) or 0, reverse=True)
+            return {
+                "total_count": len(processes),
+                "top_consumers": processes[:5]
+            }
+        except Exception:
+            return {"total_count": 0, "top_consumers": []}
 
     def _think(self, prompt: str, observation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

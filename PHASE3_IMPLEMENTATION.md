@@ -142,11 +142,240 @@ python aegis.py --rollback-revision 20250106_143052_file_mod
 python aegis.py --test-connection
 ```
 
+## 🎯 Phase B: Control Loop & Policy Engine - COMPLETE
+
+### ✅ Control Loop Implementation
+
+The control loop has been fully implemented with the observe → think → decide → act cycle:
+
+**File**: `src/core/control_loop.py`
+
+#### State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     AEGIS CONTROL LOOP                       │
+└─────────────────────────────────────────────────────────────┘
+
+    [START]
+       │
+       ▼
+   ┌───────────┐
+   │  OBSERVE  │ ← Gather system state
+   └─────┬─────┘   - CPU/Memory metrics
+         │         - Active window
+         │         - Recent logs
+         │         - Process summary
+         ▼
+   ┌───────────┐
+   │   THINK   │ ← Call LLM for reasoning
+   └─────┬─────┘   - owui_client.aegis_reasoning_call()
+         │         - Returns verbose reasoning
+         │         - Logged to internal channel
+         ▼
+   ┌───────────┐
+   │ SUMMARIZE │ ← Convert to compact intent
+   └─────┬─────┘   - reasoning_channel.summarize_to_intent()
+         │         - Creates structured intent packet
+         │         - Logged to external channel
+         ▼
+   ┌───────────┐
+   │  DECIDE   │ ← Policy + Sandbox + Pause checks
+   └─────┬─────┘   - action_router.route_intent()
+         │         - Policy engine validation
+         │         - Sandbox routing for file ops
+         │         - Interactive pause if needed
+         ▼
+   ┌───────────┐
+   │    ACT    │ ← Execute allowed actions
+   └─────┬─────┘   - Automation modules (future)
+         │         - Logging to SQLite + JSONL
+         │
+         ▼
+   [ITERATION COMPLETE]
+       │
+       ▼
+   ┌───────────┐
+   │   STOP?   │ ◄─── Max iterations reached?
+   └─────┬─────┘      User interrupt?
+         │ No         Task complete?
+         │
+     Yes │
+         ▼
+     [END]
+```
+
+#### Control Loop Flow Details
+
+**OBSERVE Phase** (`_observe()`):
+- Gathers CPU, memory, disk usage via `psutil`
+- Detects active window (Windows-specific)
+- Queries recent logs from SQLite
+- Summarizes top CPU-consuming processes
+- Returns structured observation dictionary
+
+**THINK Phase** (`_think()`):
+- Calls `owui_client.aegis_reasoning_call()` with task + observations
+- LLM returns verbose reasoning (internal channel)
+- Reasoning logged via `reasoning_channel.log_internal_reasoning()`
+- **Never exposed to Claude** - only visible to Alex in logs
+
+**SUMMARIZE Phase**:
+- Converts verbose reasoning → compact intent packet
+- Uses `reasoning_channel.summarize_to_intent()`
+- Intent includes: intent_type, risk_level, actions, test_plan, rollback
+- Logged to external channel (what Claude sees)
+
+**DECIDE Phase**:
+- Routes intent through `action_router.route_intent()`
+- **Policy Check**: Validates against policy.yaml rules
+- **Sandbox Check**: File modifications → sandbox revision bundle
+- **Interactive Pause**: High-risk intents pause for approval
+- Returns routing result (allowed/blocked/sandboxed)
+
+**ACT Phase**:
+- Executes allowed intents via automation modules (Phase 5)
+- Logs all actions to SQLite + JSONL
+- Updates iteration counter and sleeps
+
+### ✅ Policy Engine Implementation
+
+**File**: `src/core/policy_engine.py`
+
+#### Features Implemented:
+
+1. **Mode-Based Control**:
+   - `assist`: All actions require approval
+   - `execute`: Actions follow policy rules
+   - `autonomous`: Maximum autonomy (use with caution)
+
+2. **Action Permission Checking**:
+   - `allow`: Action executes immediately
+   - `block`: Action denied completely
+   - `require_approval`: Human approval required
+
+3. **Path Validation**:
+   - `restricted_paths`: Never allowed (e.g., `/etc`, `/System`)
+   - `allowed_paths`: Whitelist for file operations
+   - Sandbox directory always allowed
+
+4. **Sandbox-Only Actions**:
+   - Destructive actions (delete, kill) restricted to sandbox
+   - Enforced before policy check
+   - Prevents accidental system damage
+
+5. **Meta Actions**:
+   - Control Aegis itself (pause, stop, reload_policy)
+   - Always allowed regardless of mode
+
+#### Policy Check Flow:
+
+```
+Intent arrives
+    ↓
+┌──────────────────────────────┐
+│ 1. Sandbox-Only Check        │
+│    - Is action sandbox-only? │
+│    - Is target in sandbox?   │
+└──────┬───────────────────────┘
+       │ PASS
+       ▼
+┌──────────────────────────────┐
+│ 2. Path Validation           │
+│    - Check restricted_paths  │
+│    - Check allowed_paths     │
+└──────┬───────────────────────┘
+       │ PASS
+       ▼
+┌──────────────────────────────┐
+│ 3. Mode Check                │
+│    - assist → require_approval│
+│    - execute → check rules   │
+│    - autonomous → check rules│
+└──────┬───────────────────────┘
+       │ PASS
+       ▼
+┌──────────────────────────────┐
+│ 4. Action Permission Check   │
+│    - Lookup in policy.yaml   │
+│    - Return decision         │
+└──────┬───────────────────────┘
+       │
+       ▼
+PolicyDecision(allowed, reason, requires_approval)
+```
+
+### ✅ Action Planner Implementation
+
+**File**: `src/core/action_planner.py`
+
+#### Features Implemented:
+
+1. **Intent Routing by Category**:
+   - Desktop actions → `_plan_desktop_action()`
+   - VS Code actions → `_plan_vscode_action()`
+   - Filesystem actions → `_plan_filesystem_action()`
+   - System actions → `_plan_system_action()`
+   - Meta actions → `_plan_meta_action()`
+
+2. **Multi-Step Planning**:
+   - Desktop: Window finding → Screenshot → Action
+   - Filesystem: Backup → Validate → Execute → Verify
+   - VS Code: Focus window → Open terminal → Execute command
+
+3. **Action Plan Validation**:
+   - Checks all steps have executor + function
+   - Validates parameters are dictionaries
+   - Logs validation results
+
+4. **Execution Tracking**:
+   - Tracks completed_steps
+   - Tracks failed_steps
+   - Reports plan status (complete, has_failures)
+
+### ✅ Test Suite Implementation
+
+#### Test Files Created/Updated:
+
+1. **`tests/test_control_loop.py`** (NEW):
+   - Test initialization
+   - Test observe() gathers state
+   - Test iteration with prompt
+   - Test recent log retrieval
+   - Test process summary
+
+2. **`tests/test_policy.py`** (ENHANCED):
+   - Test policy loading from YAML
+   - Test allow/block/require_approval decisions
+   - Test path validation (allowed/restricted/sandbox)
+   - Test sandbox-only action enforcement
+   - Test policy hot-reload
+   - Test mode switching (assist/execute/autonomous)
+   - Test meta action handling
+
+Run tests:
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_policy.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=src/core
+```
+
 ## 🔄 Next Steps for Full Implementation
 
-### Phase 4: Control Loop Integration
+### Phase C: Sky Integration (Future)
 
-The framework is ready, but the control loop (`src/core/control_loop.py`) still has TODO placeholders. Implement:
+The framework is ready for Sky agent handoff. Look for `// SKY_HOOK` markers:
+- `src/core/reasoning.py` - Dual-channel reasoning handoff
+- `src/core/action_router.py` - Intent delegation to Claude
+
+### Phase D: Automation Implementation
+
+Uncomment and implement automation modules:
 
 1. **Observation Gathering** (`_observe()`):
    ```python

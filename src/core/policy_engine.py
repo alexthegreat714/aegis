@@ -90,20 +90,46 @@ class PolicyEngine:
         Returns:
             PolicyDecision indicating if action is allowed
         """
-        # TODO: Implement full policy checking logic
-
         # Get operation mode
         mode = self.policy.get("mode", "assist")
 
-        # In assist mode, all actions require approval
+        # Step 1: Check if action type is in sandbox-only list
+        if self.is_sandbox_only(intent.action_type.value):
+            # Check if action is targeting sandbox directory
+            target_path = intent.parameters.get("path") or intent.parameters.get("target")
+            if target_path:
+                sandbox_dir = Path("sandbox").resolve()
+                try:
+                    target_resolved = Path(target_path).resolve()
+                    if not target_resolved.is_relative_to(sandbox_dir):
+                        return PolicyDecision(
+                            allowed=False,
+                            reason=f"Action '{intent.action_type.value}' can only be performed in sandbox directory"
+                        )
+                except (ValueError, OSError):
+                    return PolicyDecision(
+                        allowed=False,
+                        reason=f"Invalid path for sandbox-only action: {target_path}"
+                    )
+
+        # Step 2: Check path restrictions (for file/directory operations)
+        if intent.category in ["filesystem", "vscode"]:
+            target_path = intent.parameters.get("path") or intent.parameters.get("target") or intent.parameters.get("file_path")
+            if target_path and not self.is_path_allowed(target_path):
+                return PolicyDecision(
+                    allowed=False,
+                    reason=f"Path '{target_path}' is restricted by policy"
+                )
+
+        # Step 3: In assist mode, all actions require approval
         if mode == "assist":
             return PolicyDecision(
                 allowed=False,
-                reason=f"Running in assist mode - action '{intent.action_type}' requires approval",
+                reason=f"Running in assist mode - action '{intent.action_type.value}' requires approval",
                 requires_approval=True
             )
 
-        # Check action permissions
+        # Step 4: Check action permissions
         decision = self._check_action_permission(intent)
 
         # Log policy decision
@@ -128,12 +154,6 @@ class PolicyEngine:
         Returns:
             PolicyDecision
         """
-        # TODO: Implement granular permission checking
-        # - Check action category (desktop, vscode, filesystem, system)
-        # - Check specific action type
-        # - Check path restrictions
-        # - Check sandbox-only actions
-
         action_type = intent.action_type.value
         category = intent.category
 
@@ -141,8 +161,12 @@ class PolicyEngine:
         actions = self.policy.get("actions", {})
         category_actions = actions.get(category, {})
 
-        # Get permission for this action
+        # Get permission for this action (default to block if not specified)
         permission = category_actions.get(action_type, "block")
+
+        # Additional checks for meta actions (always allowed)
+        if category == "meta":
+            return PolicyDecision(allowed=True, reason=f"Meta action '{action_type}' is always allowed")
 
         if permission == "allow":
             return PolicyDecision(allowed=True, reason=f"Action '{action_type}' is allowed by policy")
@@ -165,29 +189,59 @@ class PolicyEngine:
         Returns:
             True if path is allowed
         """
-        # TODO: Implement path validation
-        # - Check against restricted_paths
-        # - Check against allowed_paths
-        # - Check if in sandbox
-
         restricted = self.policy.get("restricted_paths", [])
         allowed = self.policy.get("allowed_paths", [])
 
-        path_obj = Path(path).resolve()
+        try:
+            path_obj = Path(path).resolve()
+        except (ValueError, OSError) as e:
+            self.logger.log_event(
+                event_type="path_validation_error",
+                data={"path": path, "error": str(e)},
+                status="warning"
+            )
+            return False
 
-        # Check restricted paths
+        # Always allow sandbox directory
+        try:
+            sandbox_dir = Path("sandbox").resolve()
+            if path_obj.is_relative_to(sandbox_dir):
+                return True
+        except (ValueError, OSError):
+            pass
+
+        # Check restricted paths - these are NEVER allowed
         for restricted_path in restricted:
-            if path_obj.is_relative_to(Path(restricted_path)):
-                return False
+            try:
+                restricted_resolved = Path(restricted_path).resolve()
+                if path_obj.is_relative_to(restricted_resolved):
+                    self.logger.log_event(
+                        event_type="path_blocked",
+                        data={"path": path, "reason": f"In restricted path: {restricted_path}"},
+                        status="warning"
+                    )
+                    return False
+            except (ValueError, OSError):
+                continue
 
         # If allowed_paths is defined, path must be in one of them
         if allowed:
             for allowed_path in allowed:
-                if path_obj.is_relative_to(Path(allowed_path)):
-                    return True
+                try:
+                    allowed_resolved = Path(allowed_path).resolve()
+                    if path_obj.is_relative_to(allowed_resolved):
+                        return True
+                except (ValueError, OSError):
+                    continue
+            # Path not in any allowed path
+            self.logger.log_event(
+                event_type="path_blocked",
+                data={"path": path, "reason": "Not in allowed_paths list"},
+                status="warning"
+            )
             return False
 
-        # No restrictions
+        # No restrictions - allow by default
         return True
 
     def is_sandbox_only(self, action_type: str) -> bool:

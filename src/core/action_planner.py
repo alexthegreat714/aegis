@@ -94,8 +94,6 @@ class ActionPlanner:
         Returns:
             ActionPlan with concrete steps
         """
-        # TODO: Implement planning logic based on intent type
-
         self.logger.log_event(
             event_type="action_plan_created",
             data={"intent": intent.to_dict()},
@@ -111,8 +109,11 @@ class ActionPlanner:
             return self._plan_filesystem_action(intent)
         elif intent.category == "system":
             return self._plan_system_action(intent)
+        elif intent.category == "meta":
+            return self._plan_meta_action(intent)
         else:
-            raise ValueError(f"Unknown intent category: {intent.category}")
+            # Default: create simple single-step plan
+            return self._create_simple_plan(intent)
 
     def _plan_desktop_action(self, intent: Intent) -> ActionPlan:
         """
@@ -124,18 +125,43 @@ class ActionPlanner:
         Returns:
             ActionPlan
         """
-        # TODO: Implement desktop action planning
-        # Example: mouse_click -> find window, focus, click coordinates
+        from intents.intent_types import IntentType
 
-        steps = [
-            ActionStep(
-                step_id=1,
-                description=f"Execute {intent.action_type.value}",
+        steps = []
+        action_type = intent.action_type
+
+        # Special handling for window operations
+        if action_type in [IntentType.WINDOW_FOCUS, IntentType.WINDOW_CLOSE,
+                          IntentType.WINDOW_MINIMIZE, IntentType.WINDOW_MAXIMIZE]:
+            # Add window finding step if title provided
+            if "title" in intent.parameters:
+                steps.append(ActionStep(
+                    step_id=len(steps) + 1,
+                    description=f"Find window: {intent.parameters['title']}",
+                    executor="automation.windows",
+                    function="find_window",
+                    parameters={"title": intent.parameters["title"]}
+                ))
+
+        # Special handling for mouse click - may need screenshot first
+        if action_type == IntentType.MOUSE_CLICK and intent.parameters.get("requires_screenshot"):
+            steps.append(ActionStep(
+                step_id=len(steps) + 1,
+                description="Capture screenshot for target verification",
                 executor="automation.desktop",
-                function=intent.action_type.value,
-                parameters=intent.parameters
-            )
-        ]
+                function="screenshot",
+                parameters={},
+                requires_screenshot=True
+            ))
+
+        # Add main action step
+        steps.append(ActionStep(
+            step_id=len(steps) + 1,
+            description=f"Execute {intent.action_type.value}",
+            executor="automation.desktop",
+            function=intent.action_type.value,
+            parameters=intent.parameters
+        ))
 
         return ActionPlan(intent=intent, steps=steps)
 
@@ -174,21 +200,53 @@ class ActionPlanner:
         Returns:
             ActionPlan
         """
-        # TODO: Implement filesystem action planning
-        # Example: file_write -> validate path, create backup, write file, verify
+        from intents.intent_types import IntentType
 
-        steps = [
-            ActionStep(
-                step_id=1,
-                description=f"Execute filesystem action: {intent.action_type.value}",
-                executor="automation.desktop",  # For now, route to desktop
-                function="filesystem_operation",
-                parameters={
-                    "operation": intent.action_type.value,
-                    **intent.parameters
-                }
-            )
-        ]
+        steps = []
+        action_type = intent.action_type
+
+        # For write/delete/modify operations, add backup step
+        if action_type in [IntentType.FILE_WRITE, IntentType.FILE_DELETE,
+                          IntentType.DIRECTORY_DELETE]:
+            target_path = intent.parameters.get("path") or intent.parameters.get("target")
+            if target_path:
+                steps.append(ActionStep(
+                    step_id=len(steps) + 1,
+                    description=f"Create backup of: {target_path}",
+                    executor="automation.filesystem",
+                    function="create_backup",
+                    parameters={"path": target_path}
+                ))
+
+        # Add path validation step
+        target_path = intent.parameters.get("path") or intent.parameters.get("target")
+        if target_path:
+            steps.append(ActionStep(
+                step_id=len(steps) + 1,
+                description=f"Validate path: {target_path}",
+                executor="automation.filesystem",
+                function="validate_path",
+                parameters={"path": target_path}
+            ))
+
+        # Add main filesystem operation
+        steps.append(ActionStep(
+            step_id=len(steps) + 1,
+            description=f"Execute filesystem action: {intent.action_type.value}",
+            executor="automation.filesystem",
+            function=intent.action_type.value,
+            parameters=intent.parameters
+        ))
+
+        # For write operations, add verification step
+        if action_type in [IntentType.FILE_WRITE, IntentType.DIRECTORY_CREATE]:
+            steps.append(ActionStep(
+                step_id=len(steps) + 1,
+                description="Verify operation success",
+                executor="automation.filesystem",
+                function="verify_operation",
+                parameters={"operation": intent.action_type.value, **intent.parameters}
+            ))
 
         return ActionPlan(intent=intent, steps=steps)
 
@@ -217,6 +275,50 @@ class ActionPlanner:
 
         return ActionPlan(intent=intent, steps=steps)
 
+    def _plan_meta_action(self, intent: Intent) -> ActionPlan:
+        """
+        Plan meta action (control Aegis itself).
+
+        Args:
+            intent: Meta intent
+
+        Returns:
+            ActionPlan
+        """
+        steps = [
+            ActionStep(
+                step_id=1,
+                description=f"Execute meta action: {intent.action_type.value}",
+                executor="core.control_loop",
+                function=intent.action_type.value,
+                parameters=intent.parameters
+            )
+        ]
+
+        return ActionPlan(intent=intent, steps=steps)
+
+    def _create_simple_plan(self, intent: Intent) -> ActionPlan:
+        """
+        Create a simple single-step action plan.
+
+        Args:
+            intent: Intent to plan
+
+        Returns:
+            ActionPlan
+        """
+        steps = [
+            ActionStep(
+                step_id=1,
+                description=f"Execute {intent.action_type.value}",
+                executor="automation.generic",
+                function=intent.action_type.value,
+                parameters=intent.parameters
+            )
+        ]
+
+        return ActionPlan(intent=intent, steps=steps)
+
     def validate_plan(self, plan: ActionPlan) -> bool:
         """
         Validate that a plan is executable.
@@ -227,9 +329,44 @@ class ActionPlanner:
         Returns:
             True if plan is valid
         """
-        # TODO: Implement plan validation
-        # - Check all required parameters present
-        # - Verify executor modules exist
-        # - Check step dependencies
+        # Check that plan has at least one step
+        if not plan.steps:
+            self.logger.log_event(
+                event_type="plan_validation_failed",
+                data={"reason": "Plan has no steps"},
+                status="error"
+            )
+            return False
+
+        # Check that all steps have required fields
+        for step in plan.steps:
+            if not step.executor or not step.function:
+                self.logger.log_event(
+                    event_type="plan_validation_failed",
+                    data={
+                        "reason": f"Step {step.step_id} missing executor or function",
+                        "step": step.description
+                    },
+                    status="error"
+                )
+                return False
+
+            # Check that required parameters are present
+            if not isinstance(step.parameters, dict):
+                self.logger.log_event(
+                    event_type="plan_validation_failed",
+                    data={
+                        "reason": f"Step {step.step_id} has invalid parameters",
+                        "step": step.description
+                    },
+                    status="error"
+                )
+                return False
+
+        self.logger.log_event(
+            event_type="plan_validated",
+            data={"steps_count": len(plan.steps)},
+            status="success"
+        )
 
         return True
