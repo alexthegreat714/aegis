@@ -757,6 +757,321 @@ python -m pytest tests/test_execution.py --cov=src/automation -v
 
 ---
 
+## 🔁 Day 4: Multi-Cycle Autonomous Agent - COMPLETE
+
+### ✅ System Observer Module
+
+**File**: `src/utils/system_observer.py` (NEW - 250+ lines)
+
+Created comprehensive system observation module for gathering enhanced context:
+
+**Key Features**:
+```python
+class SystemObserver:
+    def observe(self) -> SystemObservation:
+        """Collect current system state."""
+        return {
+            "timestamp": ISO timestamp,
+            "active_window": Current window title,
+            "processes": List of running processes,
+            "cpu_percent": CPU usage (0-100),
+            "memory_percent": Memory usage (0-100),
+            "disk_percent": Disk usage (0-100),
+            "platform": OS platform,
+            "python_version": Python version,
+            "uptime_seconds": Observer uptime,
+            "process_count": Total process count,
+            "top_cpu_processes": Top 5 CPU consumers
+        }
+```
+
+**SystemObservation TypedDict**:
+- Structured, type-safe observation data
+- JSON-serializable for LLM prompts
+- Compact summary method for logging
+
+### ✅ Digest Report Generator
+
+**File**: `src/reporting/digest.py` (NEW - 300+ lines)
+
+Created digest reporting system for cycle summaries:
+
+**CycleDigest Dataclass**:
+```python
+@dataclass
+class CycleDigest:
+    start_time: str
+    end_time: Optional[str]
+    total_cycles: int
+    intents_executed: int
+    intents_succeeded: int
+    intents_failed: int
+    policy_allows: int
+    policy_denies: int
+    policy_requires_approval: int
+    execution_times_ms: List[float]
+    intent_types_executed: Dict[str, int]
+    errors: List[str]
+```
+
+**Output Formats**:
+1. **to_dict()**: JSON-serializable dictionary
+2. **to_json()**: JSON string with indentation
+3. **to_markdown()**: Pretty markdown summary
+
+**Example Markdown Output**:
+```markdown
+# Aegis Cycle Digest
+
+**Start Time**: 2025-01-15T10:30:00
+**End Time**: 2025-01-15T10:35:00
+
+## Execution Summary
+
+- **Total Cycles**: 5
+- **Intents Executed**: 12
+- **Success Rate**: 91.7%
+
+### Results
+
+- ✅ **Succeeded**: 11
+- ❌ **Failed**: 1
+
+### Policy Decisions
+
+- ✅ **Allowed**: 10
+- 🚫 **Denied**: 2
+- ⏸️  **Requires Approval**: 0
+
+### Performance
+
+- **Total Execution Time**: 1250.45ms
+- **Average Execution Time**: 104.20ms
+- **Min Execution Time**: 45.32ms
+- **Max Execution Time**: 235.78ms
+```
+
+### ✅ Intent Chaining Support
+
+**File**: `src/core/intent_parser.py` (UPDATED)
+
+Added `parse_intent_list()` method for multi-intent parsing:
+
+**Supported Formats**:
+
+1. **Multi-line list**:
+```
+INTENTS:
+  - open_app name=notepad
+  - type_text text="hello world"
+  - screenshot path=output.png
+```
+
+2. **JSON array**:
+```json
+[
+  {"intent": "open_app", "target": "notepad", "args": {}},
+  {"intent": "type_text", "target": "hello", "args": {}}
+]
+```
+
+3. **Single intent** (fallback to parse())
+
+**Argument Parsing**:
+- Supports `key=value` format
+- Handles quoted values: `text="hello world"`
+- Extracts parameters automatically
+
+### ✅ Control Loop Cycle Methods
+
+**File**: `src/core/control_loop.py` (UPDATED)
+
+Added multi-cycle autonomous operation:
+
+**New Methods**:
+
+1. **`run_forever(initial_prompt)`**:
+   - Runs continuously until CTRL+C
+   - Interrupt-safe with graceful shutdown
+   - Displays digest on exit
+
+2. **`run_n_cycles(n, initial_prompt)`**:
+   - Runs for exactly N cycles
+   - Displays digest on completion
+   - Interrupt-safe
+
+3. **`get_current_digest()`**:
+   - Query digest during execution
+   - Returns JSON-serializable dict
+
+**Usage Examples**:
+```python
+# Run 5 cycles
+loop.run_n_cycles(5, "Monitor system health")
+
+# Run forever (CTRL+C to stop)
+loop.run_forever("Autonomous security monitoring")
+
+# Get current stats
+stats = loop.get_current_digest()
+```
+
+### ✅ Enhanced Cycle Flow
+
+**New `_run_cycle()` Method**:
+
+```
+Cycle Flow:
+┌─────────────────────────────────────────────────┐
+│ 1. OBSERVE                                      │
+│    └─ SystemObserver.observe()                  │
+│       → Enhanced context (window, processes)    │
+├─────────────────────────────────────────────────┤
+│ 2. THINK                                        │
+│    └─ LLM reasoning call                        │
+│       → Verbose internal reasoning              │
+├─────────────────────────────────────────────────┤
+│ 3. PARSE (Intent Chaining)                      │
+│    └─ IntentParser.parse_intent_list()          │
+│       → List of Intent objects                  │
+├─────────────────────────────────────────────────┤
+│ 4. FOR EACH INTENT:                             │
+│    ├─ DECIDE: PolicyEngine.check_intent()       │
+│    │  └─ Record: digest.record_policy_decision()│
+│    ├─ PLAN: ActionPlanner.plan()                │
+│    ├─ ACT: Executor.execute_plan()              │
+│    │  └─ Record: digest.record_intent_executed()│
+│    └─ Track: iteration_count++                  │
+├─────────────────────────────────────────────────┤
+│ 5. TRACK                                        │
+│    └─ digest.record_cycle()                     │
+└─────────────────────────────────────────────────┘
+```
+
+**Key Features**:
+- **Intent Chaining**: Execute multiple intents per cycle
+- **Per-Intent Policy**: Each intent checked independently
+- **Digest Tracking**: Real-time statistics collection
+- **Graceful Shutdown**: CTRL+C handled safely
+
+### ✅ Enhanced Observation
+
+**New `_observe_enhanced()` Method**:
+
+Replaces basic `_observe()` with SystemObserver integration:
+
+```python
+def _observe_enhanced(self) -> Dict[str, Any]:
+    """Use SystemObserver for structured observations."""
+    observation = self.system_observer.observe()
+
+    # Log summary
+    self.logger.log_event(
+        event_type="observation_gathered",
+        data={
+            "cycle": self.cycle_count,
+            "cpu_percent": observation.get("cpu_percent"),
+            "active_window": observation.get("active_window")
+        }
+    )
+
+    return observation
+```
+
+**Benefits**:
+- Typed observations (SystemObservation TypedDict)
+- Comprehensive system context
+- Reusable across different loop modes
+
+### ✅ Test Suite (Day 4)
+
+**File**: `tests/test_cycle_mode.py` (NEW - 400+ lines, 25+ tests)
+
+**Test Coverage**:
+
+**SystemObserver Tests**:
+- `test_observe_returns_typed_dict()`: Validates return type
+- `test_observation_has_useful_fields()`: **Requirement**: at least 2 useful fields
+- `test_observation_cpu_percent_valid()`: Validates 0-100 range
+- `test_observation_memory_percent_valid()`: Validates 0-100 range
+- `test_get_idle_time()`: Tests idle tracking
+- `test_to_summary_dict()`: Tests compact summary
+
+**DigestGenerator Tests**:
+- `test_start_digest()`: Tests digest initialization
+- `test_record_cycle()`: Tests cycle counting
+- `test_record_intent_success()`: Tests success tracking
+- `test_record_intent_failure()`: Tests failure tracking
+- `test_record_policy_allow()`: Tests policy allow tracking
+- `test_record_policy_deny()`: Tests policy deny tracking
+- `test_digest_tracks_success_failure_deny_counts()`: **Requirement**: digest records counts
+- `test_digest_to_dict()`: Tests JSON serialization
+- `test_digest_to_json()`: Tests JSON string output
+- `test_digest_to_markdown()`: Tests markdown formatting
+
+**Intent Chaining Tests**:
+- `test_parse_intent_list_json_array()`: Tests JSON array parsing
+- `test_parse_intent_list_multiline_format()`: Tests multi-line format
+- `test_parse_intent_list_single_intent()`: Tests single intent fallback
+- `test_parse_intent_list_empty_returns_empty_list()`: Tests error handling
+
+**Control Loop Tests**:
+- `test_run_n_cycles_completes()`: **Requirement**: run_n_cycles(3) completes
+- Tests method signatures and availability
+- Verifies interrupt-safe design (CTRL+C handling in actual methods)
+
+**Run Day 4 Tests**:
+```bash
+# All cycle mode tests
+python -m pytest tests/test_cycle_mode.py -v
+
+# Specific test classes
+python -m pytest tests/test_cycle_mode.py::TestSystemObserver -v
+python -m pytest tests/test_cycle_mode.py::TestDigestGenerator -v
+python -m pytest tests/test_cycle_mode.py::TestIntentChaining -v
+```
+
+### Day 4 Summary
+
+**Files Created**:
+- `src/utils/system_observer.py` (NEW, 250+ lines)
+- `src/reporting/` (NEW directory)
+- `src/reporting/__init__.py` (NEW)
+- `src/reporting/digest.py` (NEW, 300+ lines)
+- `tests/test_cycle_mode.py` (NEW, 400+ lines, 25+ tests)
+
+**Files Modified**:
+- `src/core/intent_parser.py` (added parse_intent_list() + _parse_args_string())
+- `src/core/control_loop.py` (added run_forever(), run_n_cycles(), _run_cycle(), _observe_enhanced(), _parse_intent_list())
+
+**Total Day 4**: ~1,200 lines of new code + 25+ tests
+
+**Key Achievements**:
+- ✅ Multi-cycle autonomous operation (run_forever, run_n_cycles)
+- ✅ Intent chaining (multiple intents per cycle)
+- ✅ Enhanced observation (SystemObserver with TypedDict)
+- ✅ Digest reporting (JSON + Markdown summaries)
+- ✅ Graceful shutdown (CTRL+C interrupt-safe)
+- ✅ Comprehensive tracking (success/failure/deny counts, timing stats)
+
+**Architecture Evolution**:
+
+**Day 1-3**: Single-shot execution
+```
+User Prompt → Think → Decide → Act → Stop
+```
+
+**Day 4**: Multi-cycle autonomous agent
+```
+User Prompt → [Observe → Think → Parse → For Each Intent → Decide → Act]
+             ↑                                                            ↓
+             └────────── Sleep Interval ← Record Cycle ← Track ──────────┘
+                                              ↓
+                                        Digest Report
+```
+
+---
+
 ## 🔄 Next Steps for Full Implementation
 
 ### Phase C: Sky Integration (Future)

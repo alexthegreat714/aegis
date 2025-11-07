@@ -2,6 +2,7 @@
 Main control loop for Aegis agent.
 
 Implements the observe → think → decide → act cycle.
+Day 4: Multi-cycle autonomous operation with observation and digest reporting.
 """
 
 from typing import Optional, Dict, Any, List
@@ -19,6 +20,8 @@ from core.sandbox_revision import SandboxRevisionManager
 from core.interactive import InteractivePause
 from core.intent_parser import IntentParser, IntentParseError
 from automation.executor import ActionExecutor
+from utils.system_observer import SystemObserver
+from reporting.digest import DigestGenerator
 
 
 class ControlLoop:
@@ -84,9 +87,15 @@ class ControlLoop:
         self.intent_parser = IntentParser(logger=logger)
         self.executor = ActionExecutor(logger=logger, settings=settings, dry_run=dry_run)
 
+        # Day 4: Initialize observation and digest tracking
+        self.system_observer = SystemObserver()
+        self.digest_generator = DigestGenerator()
+
         self.running = False
         self.iteration_count = 0
+        self.cycle_count = 0
         self.max_iterations = settings.get("control_loop", {}).get("max_iterations", 100)
+        self.sleep_interval_ms = settings.get("control_loop", {}).get("sleep_between_actions_ms", 500)
 
     def start(self, initial_prompt: Optional[str] = None) -> None:
         """
@@ -133,10 +142,290 @@ class ControlLoop:
         self.running = False
         self.logger.log_event(
             event_type="control_loop_stop",
-            data={"iterations_completed": self.iteration_count},
+            data={
+                "iterations_completed": self.iteration_count,
+                "cycles_completed": self.cycle_count
+            },
             status="info"
         )
-        print(f"[Aegis] Control loop stopped after {self.iteration_count} iterations")
+        print(f"[Aegis] Control loop stopped after {self.cycle_count} cycles ({self.iteration_count} iterations)")
+
+    def run_forever(self, initial_prompt: Optional[str] = None) -> None:
+        """
+        Run control loop continuously until interrupted.
+
+        Day 4: Multi-cycle autonomous operation with graceful shutdown.
+
+        Args:
+            initial_prompt: Optional initial prompt to seed the agent
+
+        Note:
+            Press CTRL+C to stop gracefully
+        """
+        self.running = True
+        self.cycle_count = 0
+        self.iteration_count = 0
+
+        # Start digest tracking
+        self.digest_generator.start_digest()
+
+        self.logger.log_event(
+            event_type="control_loop_start_forever",
+            data={"initial_prompt": initial_prompt},
+            status="info"
+        )
+
+        print("[Aegis] Control loop started (continuous mode)")
+        print("[Aegis] Press CTRL+C to stop gracefully\n")
+
+        try:
+            while self.running:
+                self._run_cycle(initial_prompt if self.cycle_count == 0 else None)
+                self.cycle_count += 1
+
+                # Sleep between cycles
+                time.sleep(self.sleep_interval_ms / 1000.0)
+
+        except KeyboardInterrupt:
+            print("\n[Aegis] Control loop interrupted by user (CTRL+C)")
+            self.stop()
+        except Exception as e:
+            self.logger.log_event(
+                event_type="control_loop_error",
+                data={"error": str(e)},
+                status="error"
+            )
+            raise
+        finally:
+            # End digest and display
+            if self.digest_generator.current_digest:
+                digest = self.digest_generator.end_digest()
+                print("\n" + "=" * 60)
+                print(digest.to_markdown())
+                print("=" * 60)
+
+            self.stop()
+
+    def run_n_cycles(self, n: int, initial_prompt: Optional[str] = None) -> None:
+        """
+        Run control loop for N cycles.
+
+        Day 4: Fixed number of autonomous cycles.
+
+        Args:
+            n: Number of cycles to run
+            initial_prompt: Optional initial prompt to seed the agent
+        """
+        self.running = True
+        self.cycle_count = 0
+        self.iteration_count = 0
+
+        # Start digest tracking
+        self.digest_generator.start_digest()
+
+        self.logger.log_event(
+            event_type="control_loop_start_n_cycles",
+            data={"n_cycles": n, "initial_prompt": initial_prompt},
+            status="info"
+        )
+
+        print(f"[Aegis] Control loop started ({n} cycles)\n")
+
+        try:
+            while self.running and self.cycle_count < n:
+                self._run_cycle(initial_prompt if self.cycle_count == 0 else None)
+                self.cycle_count += 1
+
+                # Sleep between cycles (except after last cycle)
+                if self.cycle_count < n:
+                    time.sleep(self.sleep_interval_ms / 1000.0)
+
+        except KeyboardInterrupt:
+            print("\n[Aegis] Control loop interrupted by user (CTRL+C)")
+            self.stop()
+        except Exception as e:
+            self.logger.log_event(
+                event_type="control_loop_error",
+                data={"error": str(e)},
+                status="error"
+            )
+            raise
+        finally:
+            # End digest and display
+            if self.digest_generator.current_digest:
+                digest = self.digest_generator.end_digest()
+                print("\n" + "=" * 60)
+                print(digest.to_markdown())
+                print("=" * 60)
+
+            self.stop()
+
+    def get_current_digest(self) -> Optional[Dict[str, Any]]:
+        """
+        Get current digest without ending the session.
+
+        Day 4: Allow querying digest during execution.
+
+        Returns:
+            Current digest dictionary or None
+        """
+        digest = self.digest_generator.get_current_digest()
+        return digest.to_dict() if digest else None
+
+    def _run_cycle(self, prompt: Optional[str] = None) -> None:
+        """
+        Run a single cycle of the control loop.
+
+        Day 4: Enhanced to support intent chaining and digest tracking.
+
+        A cycle consists of:
+        1. Observe: Gather system state
+        2. Think: Call LLM for reasoning
+        3. Parse: Extract intent list (may be multiple intents)
+        4. For each intent:
+           - Decide: Check policy
+           - Plan: Create action plan
+           - Act: Execute if allowed
+        5. Track: Record results in digest
+
+        Args:
+            prompt: Optional prompt for this cycle
+        """
+        print(f"\n{'=' * 80}")
+        print(f"CYCLE {self.cycle_count + 1}")
+        print(f"{'=' * 80}\n")
+
+        # OBSERVE phase - Use SystemObserver for enhanced context
+        observation = self._observe_enhanced()
+
+        # THINK phase (LLM call)
+        if prompt:
+            print(f"{'=' * 60}")
+            print("REASONING:")
+            print(f"{'=' * 60}\n")
+
+            response = self._think(prompt, observation)
+
+            if response:
+                reasoning = response.get("reasoning", "")
+                model = response.get("model", "unknown")
+
+                # Display reasoning
+                print(reasoning)
+                print(f"\n{'=' * 60}\n")
+
+                # Log internal reasoning
+                reasoning_id = self.reasoning_channel.log_internal_reasoning(
+                    task=prompt,
+                    reasoning=reasoning,
+                    model=model,
+                    observation=observation
+                )
+
+                # Day 4: PARSE phase - Support intent chaining
+                print(f"{'=' * 60}")
+                print("INTENT PARSING (Chaining Support):")
+                print(f"{'=' * 60}\n")
+
+                intent_list = self._parse_intent_list(reasoning, prompt)
+
+                if intent_list:
+                    print(f"[Parser] Parsed {len(intent_list)} intent(s)")
+
+                    # Day 4: Execute each intent in sequence
+                    for idx, intent in enumerate(intent_list):
+                        self.iteration_count += 1
+
+                        print(f"\n{'—' * 60}")
+                        print(f"INTENT {idx + 1}/{len(intent_list)}")
+                        print(f"{'—' * 60}\n")
+
+                        print(f"[Parser] Type: {intent.action_type.value}")
+                        print(f"[Parser] Parameters: {intent.parameters}")
+                        print(f"[Parser] Rationale: {intent.rationale}")
+
+                        # PLAN phase
+                        print(f"\n{'=' * 60}")
+                        print("ACTION PLANNING:")
+                        print(f"{'=' * 60}\n")
+
+                        action_plan = self.action_planner.plan(intent)
+                        print(f"[Planner] Created plan with {len(action_plan.steps)} steps")
+                        for step in action_plan.steps:
+                            print(f"  {step.step_id}. {step.description}")
+
+                        # POLICY CHECK phase
+                        print(f"\n{'=' * 60}")
+                        print("POLICY CHECK:")
+                        print(f"{'=' * 60}\n")
+
+                        policy_decision = self.policy_engine.check_intent(intent)
+                        print(f"[Policy] Decision: {policy_decision}")
+
+                        # Track policy decision in digest
+                        self.digest_generator.record_policy_decision(
+                            allowed=policy_decision.allowed,
+                            requires_approval=policy_decision.requires_approval
+                        )
+
+                        # EXECUTE phase
+                        if policy_decision.allowed:
+                            print(f"\n{'=' * 60}")
+                            mode_label = "DRY RUN" if self.executor.dry_run else "EXECUTING"
+                            print(f"{mode_label}:")
+                            print(f"{'=' * 60}\n")
+
+                            try:
+                                result = self.executor.execute_plan(action_plan)
+                                print(f"\n[Execution] {'DRY RUN ' if self.executor.dry_run else ''}Result: {'SUCCESS' if result.success else 'FAILED'}")
+                                if result.error:
+                                    print(f"[Execution] Error: {result.error}")
+                                if result.output:
+                                    print(f"[Execution] Output: {result.output}")
+                                print(f"[Execution] Time: {result.execution_time_ms:.2f}ms")
+
+                                # Track execution in digest
+                                self.digest_generator.record_intent_executed(
+                                    intent_type=intent.action_type.value,
+                                    success=result.success,
+                                    execution_time_ms=result.execution_time_ms,
+                                    error=result.error
+                                )
+
+                            except Exception as e:
+                                print(f"[Execution] FAILED: {e}")
+                                self.logger.log_event(
+                                    event_type="execution_failed",
+                                    data={"error": str(e)},
+                                    status="error"
+                                )
+
+                                # Track failure in digest
+                                self.digest_generator.record_intent_executed(
+                                    intent_type=intent.action_type.value,
+                                    success=False,
+                                    execution_time_ms=0.0,
+                                    error=str(e)
+                                )
+
+                        else:
+                            print(f"\n[Policy] Action blocked: {policy_decision.reason}")
+                            if policy_decision.requires_approval:
+                                print(f"[Policy] Human approval required")
+
+                else:
+                    print("[Parser] No intents parsed")
+
+        else:
+            # No prompt - skip this cycle
+            print("[Aegis] No prompt for this cycle, skipping...")
+
+        # Record cycle completion
+        self.digest_generator.record_cycle()
+
+        print(f"\n{'=' * 80}")
+        print(f"CYCLE {self.cycle_count + 1} COMPLETED")
+        print(f"{'=' * 80}\n")
 
     def _run_iteration(self, prompt: Optional[str] = None) -> None:
         """
@@ -459,3 +748,77 @@ class ControlLoop:
                 parameters={"output_path": "fallback_screenshot.png"},
                 rationale="Fallback intent due to parsing failure"
             )
+
+    def _observe_enhanced(self) -> Dict[str, Any]:
+        """
+        Gather enhanced system state using SystemObserver.
+
+        Day 4: Uses SystemObserver for structured, comprehensive observations.
+
+        Returns:
+            SystemObservation dictionary
+        """
+        observation = self.system_observer.observe()
+
+        self.logger.log_event(
+            event_type="observation_gathered",
+            data={
+                "cycle": self.cycle_count,
+                "iteration": self.iteration_count,
+                "cpu_percent": observation.get("cpu_percent"),
+                "memory_percent": observation.get("memory_percent"),
+                "active_window": observation.get("active_window")
+            },
+            status="info"
+        )
+
+        return observation
+
+    def _parse_intent_list(self, llm_output: str, prompt: str) -> List['Intent']:
+        """
+        Parse LLM output into list of Intent objects.
+
+        Day 4: Support intent chaining - LLM may return multiple intents.
+
+        Args:
+            llm_output: Raw LLM output (reasoning text)
+            prompt: Original task prompt
+
+        Returns:
+            List of Intent objects (may be empty)
+        """
+        try:
+            # Try to parse as intent list
+            from intents.intent_schema import Intent
+
+            intent_list = self.intent_parser.parse_intent_list(llm_output)
+
+            if intent_list:
+                self.logger.log_event(
+                    event_type="intent_list_parsed",
+                    data={
+                        "intent_count": len(intent_list),
+                        "intent_types": [i.action_type.value for i in intent_list]
+                    },
+                    status="success"
+                )
+                return intent_list
+
+            # If no intents parsed, try single intent as fallback
+            try:
+                intent = self._parse_intent(llm_output, prompt)
+                if intent:
+                    return [intent]
+            except Exception:
+                pass
+
+            return []
+
+        except Exception as e:
+            self.logger.log_event(
+                event_type="intent_list_parse_failed",
+                data={"error": str(e), "llm_output": llm_output[:200]},
+                status="warning"
+            )
+            print(f"[Parser] WARNING: Could not parse intent list: {e}")
+            return []

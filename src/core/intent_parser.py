@@ -373,6 +373,124 @@ class IntentParser:
 
         return intents
 
+    def parse_intent_list(self, llm_output: str) -> List[Intent]:
+        """
+        Parse LLM output that may contain multiple intents.
+
+        Day 4: Support intent chaining from single LLM response.
+
+        Expected formats:
+        1. Multi-line list:
+           INTENTS:
+             - open_app name=notepad
+             - type_text text="hello world"
+
+        2. JSON array:
+           [
+             {"intent": "open_app", "target": "notepad", "args": {}},
+             {"intent": "type_text", "target": "hello", "args": {}}
+           ]
+
+        3. Single intent (falls back to parse())
+
+        Args:
+            llm_output: LLM output potentially containing multiple intents
+
+        Returns:
+            List of Intent objects (empty list if parsing fails)
+        """
+        # Try JSON array first
+        try:
+            data = json.loads(llm_output)
+            if isinstance(data, list):
+                return self.parse_batch(data)
+        except json.JSONDecodeError:
+            pass
+
+        # Try multi-line intent list format
+        intents = []
+        lines = llm_output.strip().split('\n')
+
+        for line in lines:
+            line = line.strip()
+
+            # Skip empty lines and headers
+            if not line or line.upper().startswith('INTENT'):
+                continue
+
+            # Remove leading bullet/dash
+            if line.startswith('-') or line.startswith('•'):
+                line = line[1:].strip()
+
+            # Try to parse as natural language or simple format
+            # Format: "open_app name=notepad" or "type_text text='hello'"
+            if ' ' in line:
+                parts = line.split(maxsplit=1)
+                action = parts[0].lower()
+                args_str = parts[1] if len(parts) > 1 else ""
+
+                # Parse arguments from "key=value key2=value2" format
+                args = self._parse_args_string(args_str)
+
+                try:
+                    # Try to create intent from action name
+                    if action in ['open_app', 'open', 'launch', 'start']:
+                        target = args.get('name', args.get('target', ''))
+                        intents.append(self._create_open_app_intent(target, args))
+                    elif action in ['type_text', 'type', 'write', 'enter']:
+                        text = args.get('text', args.get('target', ''))
+                        intents.append(self._create_type_text_intent(text, args))
+                    elif action in ['click_on', 'click']:
+                        target = args.get('target', args.get('element', ''))
+                        intents.append(self._create_click_on_intent(target, args))
+                    elif action in ['screenshot', 'screen', 'capture']:
+                        path = args.get('path', args.get('output', ''))
+                        intents.append(self._create_screenshot_intent(path, args))
+                    else:
+                        # Try parsing the whole line as natural language
+                        try:
+                            intent = self._parse_natural_language(line)
+                            intents.append(intent)
+                        except IntentParseError:
+                            # Skip unparseable lines
+                            continue
+                except Exception:
+                    # Skip failed intent creation
+                    continue
+
+        # If no intents found, try parsing entire output as single intent
+        if not intents:
+            try:
+                intent = self.parse(llm_output)
+                return [intent]
+            except IntentParseError:
+                return []
+
+        return intents
+
+    def _parse_args_string(self, args_str: str) -> Dict[str, Any]:
+        """
+        Parse arguments from string format "key=value key2='value 2'".
+
+        Args:
+            args_str: Arguments string
+
+        Returns:
+            Dictionary of parsed arguments
+        """
+        args = {}
+        if not args_str:
+            return args
+
+        # Simple regex to match key=value or key='value' or key="value"
+        pattern = r'(\w+)=(["\']?)([^"\']*)\2'
+        matches = re.findall(pattern, args_str)
+
+        for key, _, value in matches:
+            args[key] = value
+
+        return args
+
     def validate_intent(self, intent: Intent) -> bool:
         """
         Validate that an Intent object is well-formed.
