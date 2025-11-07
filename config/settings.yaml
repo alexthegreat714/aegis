@@ -1,0 +1,42 @@
+# Aegis Configuration
+# This file supports hot-reload - changes are detected and applied without restart
+
+# Control Loop Settings
+control_loop:
+  max_cycles: 100
+  cycle_delay_seconds: 1.0
+  enable_heartbeat: true
+  heartbeat_interval_cycles: 5  # Log heartbeat every N cycles
+
+# Logging Settings
+logging:
+  db_path: "data/aegis.db"
+  enable_jsonl: true
+  log_retention_days: 30  # Auto-prune logs older than N days
+  max_heartbeat_entries: 1000  # Keep at most N heartbeat entries
+
+# Health Monitoring
+health:
+  monitor_cpu: true
+  monitor_memory: true
+  monitor_active_window: true
+
+# Policy Settings
+policy:
+  mode: "permissive"  # permissive, strict, or learning
+  allowed_intents:
+    - "maintain_idle_state"
+    - "monitor_system"
+    - "check_health"
+
+# Sandbox Mode (for testing)
+sandbox:
+  enabled: false
+  mock_actions: true
+  dry_run: true
+
+# Assist Mode (interactive)
+assist:
+  enabled: false
+  require_confirmation: true
+  verbose: true
