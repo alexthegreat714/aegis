@@ -17,6 +17,8 @@ from core.reasoning import ReasoningChannel
 from core.action_router import ActionRouter
 from core.sandbox_revision import SandboxRevisionManager
 from core.interactive import InteractivePause
+from core.intent_parser import IntentParser, IntentParseError
+from automation.executor import ActionExecutor
 
 
 class ControlLoop:
@@ -75,6 +77,10 @@ class ControlLoop:
             interactive_pause=interactive_pause,
             settings=settings
         )
+
+        # Day 2: Initialize intent parser and executor
+        self.intent_parser = IntentParser(logger=logger)
+        self.executor = ActionExecutor(logger=logger, settings=settings)
 
         self.running = False
         self.iteration_count = 0
@@ -173,30 +179,50 @@ class ControlLoop:
 
                 print(f"[Reasoning] Logged to internal channel: {reasoning_id}")
 
-                # SUMMARIZE phase: Convert to compact intent packet
-                intent = self.reasoning_channel.summarize_to_intent(
-                    reasoning=reasoning,
-                    task=prompt
-                )
+                # Day 2: PARSE phase - Convert reasoning to Intent object
+                print(f"\n{'=' * 60}")
+                print("INTENT PARSING:")
+                print(f"{'=' * 60}\n")
 
-                if intent:
-                    intent_id = self.reasoning_channel.log_external_intent(intent)
-                    print(f"[Intent] Created external intent: {intent_id}")
-                    print(f"[Intent] Type: {intent.get('intent_type')}, Risk: {intent.get('risk_level')}")
+                parsed_intent = self._parse_intent(reasoning, prompt)
 
-                    # DECIDE & ACT phase: Route through action router
+                if parsed_intent:
+                    print(f"[Parser] Intent: {parsed_intent.action_type.value}")
+                    print(f"[Parser] Parameters: {parsed_intent.parameters}")
+                    print(f"[Parser] Rationale: {parsed_intent.rationale}")
+
+                    # Day 2: PLAN phase - Create action plan
                     print(f"\n{'=' * 60}")
-                    print("ROUTING INTENT:")
+                    print("ACTION PLANNING:")
+                    print(f"{'=" * 60}\n")
+
+                    action_plan = self.action_planner.plan(parsed_intent)
+                    print(f"[Planner] Created plan with {len(action_plan.steps)} steps")
+                    for step in action_plan.steps:
+                        print(f"  {step.step_id}. {step.description}")
+
+                    # Day 2: POLICY CHECK phase
+                    print(f"\n{'=' * 60}")
+                    print("POLICY CHECK:")
                     print(f"{'=' * 60}\n")
 
-                    routing_result = self.action_router.route_intent(intent)
+                    policy_decision = self.policy_engine.check_intent(parsed_intent)
+                    print(f"[Policy] Decision: {policy_decision}")
 
-                    print(f"[Router] Status: {routing_result.get('status')}")
-                    print(f"[Router] {routing_result.get('message', routing_result.get('reason', 'Done'))}")
+                    # Day 2: EXECUTE phase (stubbed)
+                    if policy_decision.allowed:
+                        print(f"\n{'=' * 60}")
+                        print("EXECUTION (STUBBED - Day 3):")
+                        print(f"{'=' * 60}\n")
 
-                    if routing_result.get("status") == "sandboxed":
-                        print(f"[Router] Revision ID: {routing_result.get('revision_id')}")
-                        print(f"[Router] Use: python aegis.py --approve-revision {routing_result.get('revision_id')}")
+                        # Day 3 will actually execute
+                        # For now, just dry run
+                        dry_run = self.executor.dry_run_plan(action_plan)
+                        print(dry_run)
+                    else:
+                        print(f"\n[Policy] Action blocked: {policy_decision.reason}")
+                        if policy_decision.requires_approval:
+                            print(f"[Policy] Human approval required")
 
                 print("\n[Aegis] Iteration completed. Stopping control loop.")
                 self.stop()
@@ -369,3 +395,52 @@ class ControlLoop:
             )
             print(f"[Think] ERROR: LLM call failed: {e}")
             return None
+
+    def _parse_intent(self, llm_output: str, prompt: str) -> Optional['Intent']:
+        """
+        Parse LLM output into Intent object.
+
+        Day 2: Parses both JSON and natural language.
+
+        Args:
+            llm_output: Raw LLM output (reasoning text)
+            prompt: Original task prompt
+
+        Returns:
+            Parsed Intent object or None if parsing fails
+        """
+        try:
+            # Try to parse LLM output as intent
+            intent = self.intent_parser.parse(llm_output)
+
+            self.logger.log_event(
+                event_type="intent_parsed",
+                data={
+                    "intent_type": intent.action_type.value,
+                    "parameters": intent.parameters
+                },
+                status="success"
+            )
+
+            return intent
+
+        except IntentParseError as e:
+            # If parsing fails, fall back to creating a simple screenshot intent
+            # This allows the control loop to continue even if LLM output is unclear
+            self.logger.log_event(
+                event_type="intent_parse_failed",
+                data={"error": str(e), "llm_output": llm_output[:200]},
+                status="warning"
+            )
+            print(f"[Parser] WARNING: Could not parse intent: {e}")
+            print(f"[Parser] Falling back to screenshot intent")
+
+            # Create fallback intent
+            from intents.intent_schema import Intent
+            from intents.intent_types import IntentType
+
+            return Intent(
+                action_type=IntentType.SCREENSHOT,
+                parameters={"output_path": "fallback_screenshot.png"},
+                rationale="Fallback intent due to parsing failure"
+            )

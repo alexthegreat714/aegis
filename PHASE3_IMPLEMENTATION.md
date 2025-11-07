@@ -365,7 +365,216 @@ python -m pytest tests/test_policy.py -v
 python -m pytest tests/ --cov=src/core
 ```
 
+---
+
+## 🎯 Day 2: Intent Parsing & Automation Dispatch - COMPLETE
+
+### ✅ Intent Parser Implementation
+
+**File**: `src/core/intent_parser.py` (NEW)
+
+The intent parser converts LLM output (JSON or natural language) into structured Intent objects.
+
+#### Features:
+
+1. **Dual Format Support**:
+   - **JSON Format**: Structured intent objects
+   - **Natural Language**: Plain text commands (e.g., "open notepad", "type hello")
+
+2. **Example Intents**:
+   - `open_app`: Launch applications (notepad, vscode, chrome, etc.)
+   - `type_text`: Type text with keyboard
+   - `click_on`: Click on elements or coordinates
+
+3. **JSON Format Examples**:
+```json
+// Simple format
+{
+    "intent": "open_app",
+    "target": "notepad",
+    "args": {}
+}
+
+// Full format
+{
+    "action_type": "mouse_click",
+    "parameters": {"x": 100, "y": 200},
+    "rationale": "Click on button",
+    "confidence": 0.95
+}
+```
+
+4. **Natural Language Examples**:
+   - "open notepad" → `Intent(VSCODE_RUN_COMMAND, {command: "notepad.exe"})`
+   - "type 'hello world'" → `Intent(KEYBOARD_TYPE, {text: "hello world"})`
+   - "click on submit button" → `Intent(MOUSE_CLICK, {target_element: "submit button"})`
+   - "click on 100,200" → `Intent(MOUSE_CLICK, {x: 100, y: 200})`
+
+5. **Error Handling**:
+   - Raises `IntentParseError` for malformed input
+   - Validates intent structure
+   - Logs all parse attempts
+
+6. **Batch Processing**:
+   - `parse_batch()` method for multiple intents
+   - Continues on failures, skips invalid intents
+
+### ✅ Action Executor (Stubbed)
+
+**File**: `src/automation/executor.py` (NEW)
+
+Routes action plans to automation modules for execution.
+
+**Day 2 Status**: All execution is stubbed with `# EXEC_HOOK` comments and logging only.
+**Day 3**: Will implement actual `pyautogui`/`pywinauto` calls.
+
+#### Features:
+
+1. **Execution Routing**:
+   - Desktop actions → `DesktopAutomation`
+   - VS Code actions → `VSCodeAutomation`
+   - Windows actions → `WindowsAutomation`
+   - Filesystem actions → Filesystem handlers
+
+2. **Dry Run Mode**:
+   - `dry_run_plan()` simulates execution without actually performing actions
+   - Shows what would be executed
+
+3. **Stubbed Execution**:
+```python
+# Day 2: Logs only
+print(f"[Desktop] Would click at ({x}, {y})")
+
+# Day 3: Will actually execute
+# self.desktop.mouse_click(x, y)
+```
+
+### ✅ Control Loop Integration
+
+**File**: `src/core/control_loop.py` (UPDATED)
+
+Integrated intent parsing and action planning into the control loop.
+
+#### New Flow:
+
+```
+OBSERVE → THINK → PARSE → PLAN → POLICY CHECK → EXECUTE (stubbed)
+```
+
+**Updated `_run_iteration()` Method**:
+1. **OBSERVE**: Gather system state (Phase B)
+2. **THINK**: Call LLM for reasoning (Phase B)
+3. **PARSE**: Convert reasoning to Intent object (NEW - Day 2)
+4. **PLAN**: Create ActionPlan from Intent (NEW - Day 2)
+5. **POLICY CHECK**: Validate against policy (Phase B)
+6. **EXECUTE**: Dry run only (NEW - Day 2, stubbed for Day 3)
+
+**New Method**: `_parse_intent(llm_output, prompt)` - Parses LLM output with fallback handling
+
+#### Execution Output:
+
+```
+============================================================
+INTENT PARSING:
+============================================================
+
+[Parser] Intent: mouse_click
+[Parser] Parameters: {'x': 100, 'y': 200}
+[Parser] Rationale: Click on button
+
+============================================================
+ACTION PLANNING:
+============================================================
+
+[Planner] Created plan with 1 steps
+  1. Execute mouse_click
+
+============================================================
+POLICY CHECK:
+============================================================
+
+[Policy] Decision: PolicyDecision(ALLOW: Action 'mouse_click' is allowed by policy)
+
+============================================================
+EXECUTION (STUBBED - Day 3):
+============================================================
+
+DRY RUN: mouse_click
+Intent: Click on button
+Steps: 1
+
+  1. Execute mouse_click
+     → automation.desktop.mouse_click({'x': 100, 'y': 200})
+```
+
+### ✅ Intent Schema Expansion
+
+**File**: `src/intents/intent_schema.py` (UPDATED)
+
+Added comprehensive docstring with 6 example intent payloads covering all supported intent types.
+
+### ✅ Test Suite (Day 2)
+
+#### New Test Files:
+
+**1. `tests/test_intents.py`** (NEW - 20+ tests):
+- Parse JSON simple intents (open_app, type_text, click_on)
+- Parse JSON full format intents
+- Parse JSON strings
+- Parse natural language commands
+- Parse click with coordinates
+- Test error handling (invalid JSON, missing fields, unknown intents)
+- Test batch parsing
+- Test intent validation
+
+**2. `tests/test_action_planner.py`** (NEW - 15+ tests):
+- Plan desktop actions (mouse, keyboard, screenshot)
+- Plan window operations (focus, close)
+- Plan filesystem actions (read, write with backup/validation)
+- Plan VS Code actions
+- Plan system actions
+- Plan meta actions
+- Validate action plans
+- Test completion/failure tracking
+
+Run Day 2 tests:
+```bash
+# Run all Day 2 tests
+python -m pytest tests/test_intents.py tests/test_action_planner.py -v
+
+# Run intent parser tests only
+python -m pytest tests/test_intents.py -v
+
+# Run action planner tests only
+python -m pytest tests/test_action_planner.py -v
+```
+
+### Day 2 Summary
+
+**Files Created**:
+- `src/core/intent_parser.py` (NEW, 400+ lines)
+- `src/automation/executor.py` (NEW, 250+ lines)
+- `tests/test_intents.py` (NEW, 270+ lines)
+- `tests/test_action_planner.py` (NEW, 230+ lines)
+
+**Files Modified**:
+- `src/core/control_loop.py` (added parsing + execution steps)
+- `src/intents/intent_schema.py` (added example payloads)
+
+**Total Day 2**: ~1,150 lines of new code + comprehensive tests
+
+---
+
 ## 🔄 Next Steps for Full Implementation
+
+### Day 3: Actual Automation Execution
+
+Replace `# EXEC_HOOK` comments with real automation:
+1. Uncomment `pyautogui` imports in `src/automation/desktop.py`
+2. Uncomment `pywinauto` imports for Windows operations
+3. Implement actual execution in `ActionExecutor._execute_*` methods
+4. Add screenshot capture to observation phase
+5. Test with real desktop actions
 
 ### Phase C: Sky Integration (Future)
 

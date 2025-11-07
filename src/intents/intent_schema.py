@@ -2,6 +2,51 @@
 Intent schema definitions.
 
 Structured representation of agent intents.
+
+Example Intent Payloads:
+
+1. Open Application:
+{
+    "intent": "open_app",
+    "target": "notepad",
+    "args": {}
+}
+
+2. Type Text:
+{
+    "intent": "type_text",
+    "target": "Hello, world!",
+    "args": {"delay_ms": 50}
+}
+
+3. Click On Element:
+{
+    "intent": "click_on",
+    "target": "submit button",
+    "args": {"button": "left"}
+}
+
+4. Full Intent Format:
+{
+    "action_type": "mouse_click",
+    "parameters": {"x": 100, "y": 200},
+    "rationale": "Click on button",
+    "confidence": 0.95
+}
+
+5. Screenshot:
+{
+    "intent": "screenshot",
+    "target": "output.png",
+    "args": {}
+}
+
+6. Close Window:
+{
+    "intent": "close_window",
+    "target": "Notepad",
+    "args": {}
+}
 """
 
 from dataclasses import dataclass, field
