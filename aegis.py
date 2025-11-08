@@ -149,12 +149,60 @@ For log inspection, use: python aegis_inspect.py
     diff_parser = revision_subparsers.add_parser('diff', help='Show diff summary for revision')
     diff_parser.add_argument('rev_id', type=str, help='Revision ID to diff')
 
+    # Logs subcommands
+    logs_parser = subparsers.add_parser('logs', help='View and tail logs')
+    logs_subparsers = logs_parser.add_subparsers(dest='logs_command', help='Logs commands')
+
+    # logs tail
+    tail_parser = logs_subparsers.add_parser('tail', help='Tail live logs')
+    tail_parser.add_argument('--live', action='store_true', help='Follow log file (like tail -f)')
+    tail_parser.add_argument('--lines', type=int, default=20, help='Number of lines to show')
+
+    # Claude subcommands
+    claude_parser = subparsers.add_parser('claude', help='Claude VS Code automation')
+    claude_subparsers = claude_parser.add_subparsers(dest='claude_command', help='Claude commands')
+
+    # claude plan
+    plan_parser = claude_subparsers.add_parser('plan', help='Generate development plan prompt')
+    plan_parser.add_argument('goal', type=str, help='Development goal')
+
+    # claude send
+    send_parser = claude_subparsers.add_parser('send', help='Send prompt to Claude')
+    send_parser.add_argument('--rev', type=str, required=True, help='Revision ID')
+    send_parser.add_argument('--prompt', type=str, help='Prompt text or file path')
+
+    # claude apply
+    apply_parser = claude_subparsers.add_parser('apply', help='Apply and test revision')
+    apply_parser.add_argument('--rev', type=str, required=True, help='Revision ID')
+    apply_parser.add_argument('--auto', action='store_true', help='Auto approve if tests pass')
+
+    # Night cycle command
+    night_parser = subparsers.add_parser('night_cycle', help='Run autonomous development cycle')
+    night_parser.add_argument('--goal', type=str, required=True, help='Development goal')
+    night_parser.add_argument('--rounds', type=int, default=3, help='Maximum rounds')
+    night_parser.add_argument('--auto', action='store_true', help='No confirmation between rounds')
+
     args = parser.parse_args()
 
     # Handle revision commands
     if args.command == 'revision':
         from cli.revision import main as revision_main
         return revision_main(args)
+
+    # Handle logs commands
+    if args.command == 'logs':
+        from cli.logs import main as logs_main
+        return logs_main(args)
+
+    # Handle claude commands
+    if args.command == 'claude':
+        from cli.claude_cli import main as claude_main
+        return claude_main(args)
+
+    # Handle night_cycle command
+    if args.command == 'night_cycle':
+        from cli.night_cycle_cli import main as night_cycle_main
+        return night_cycle_main(args)
 
     # Initialize config
     config = ConfigLoader(config_path=args.config)

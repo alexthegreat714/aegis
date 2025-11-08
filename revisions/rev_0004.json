@@ -1,0 +1,23 @@
+{
+  "rev_id": "rev_0004",
+  "goal": "Night Cycle #1: Add utils/time_now.py with now_iso() function and tests",
+  "created_utc": "2025-11-08T05:09:16.500053Z",
+  "head_commit": "28be057",
+  "status": "approved",
+  "files": [
+    "pytest.ini",
+    "PHASE_C_PLAN.md",
+    "revisions\\rev_0002.json",
+    "revisions\\rev_0003.json",
+    "src\\cli\\claude_cli.py",
+    "src\\cli\\logs.py",
+    "src\\cli\\night_cycle_cli.py",
+    "src\\core\\night_cycle.py",
+    "src\\utils\\time_now.py",
+    "tests\\test_night_cycle.py",
+    "tests\\test_time_now.py",
+    "tests\\test_vscode_automator.py",
+    "tests\\test_vscode_session.py"
+  ],
+  "test_summary": "======================= 190 passed, 1 skipped in 49.86s ======================="
+}

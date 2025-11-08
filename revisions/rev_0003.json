@@ -1,0 +1,20 @@
+{
+  "rev_id": "rev_0003",
+  "goal": "Add utils/time_now.py with now_iso() function returning ISO 8601 timestamp, plus test (Night Cycle Round 1)",
+  "created_utc": "2025-11-08T05:07:46.436159Z",
+  "head_commit": "28be057",
+  "status": "draft",
+  "files": [
+    "pytest.ini",
+    "PHASE_C_PLAN.md",
+    "revisions\\rev_0002.json",
+    "src\\cli\\claude_cli.py",
+    "src\\cli\\logs.py",
+    "src\\cli\\night_cycle_cli.py",
+    "src\\core\\night_cycle.py",
+    "tests\\test_night_cycle.py",
+    "tests\\test_vscode_automator.py",
+    "tests\\test_vscode_session.py"
+  ],
+  "test_summary": null
+}
