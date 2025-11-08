@@ -53,12 +53,16 @@ class TestControlLoop(unittest.TestCase):
         with open(self.policy_file, 'w') as f:
             yaml.dump(test_policy, f)
 
-        # Initialize logger
         (self.data_dir / "logs").mkdir(exist_ok=True)
+
+        # Add logging settings
+        self.settings["logging"] = {"jsonl_enabled": True, "sqlite_enabled": True}
+
+        # Initialize logger
         self.logger = AegisLogger(
             log_dir=str(self.data_dir / "logs"),
             db_path=str(self.data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+            settings=self.settings
         )
 
         # Initialize policy engine

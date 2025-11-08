@@ -91,14 +91,19 @@ class TestSystemObserver(unittest.TestCase):
         # First observation
         observation1 = self.observer.observe()
         idle_time1 = self.observer.get_idle_time()
-        self.assertEqual(idle_time1, 0.0)  # Just after observation
+        self.assertEqual(idle_time1, 0.0)  # First observation, no prior time
 
-        # Wait a bit WITHOUT observing
+        # Wait a bit
         time.sleep(0.1)
 
-        # Check idle time (without calling observe)
+        # Check idle time before second observation
+        idle_time_before = self.observer.get_idle_time()
+        self.assertGreaterEqual(idle_time_before, 0.1)  # Should be >= sleep time
+
+        # Second observation resets the timer
+        observation2 = self.observer.observe()
         idle_time2 = self.observer.get_idle_time()
-        self.assertGreater(idle_time2, 0.09)  # Should be ~0.1 seconds
+        self.assertLess(idle_time2, 0.01)  # Should be near 0 after fresh observe()
 
     def test_to_summary_dict(self):
         """Test observation summary conversion."""
@@ -289,13 +294,18 @@ class TestIntentChaining(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.data_dir = Path(self.temp_dir) / "data"
         self.data_dir.mkdir()
+        (self.data_dir / "logs").mkdir(exist_ok=True)
+
+        # Test settings
+        self.settings = {
+            "logging": {"jsonl_enabled": True, "sqlite_enabled": True}
+        }
 
         # Initialize logger
-        (self.data_dir / "logs").mkdir(exist_ok=True)
         self.logger = AegisLogger(
             log_dir=str(self.data_dir / "logs"),
             db_path=str(self.data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+            settings=self.settings
         )
 
         # Initialize parser
@@ -367,18 +377,19 @@ class TestControlLoopCycles(unittest.TestCase):
         temp_dir = tempfile.mkdtemp()
         data_dir = Path(temp_dir) / "data"
         data_dir.mkdir()
-
         (data_dir / "logs").mkdir(exist_ok=True)
-        logger = AegisLogger(
-            log_dir=str(data_dir / "logs"),
-            db_path=str(data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
-        )
 
         settings = {
             "control_loop": {"max_iterations": 10, "sleep_between_actions_ms": 10},
-            "safety": {"dry_run": True}
+            "safety": {"dry_run": True},
+            "logging": {"jsonl_enabled": True, "sqlite_enabled": True}
         }
+
+        logger = AegisLogger(
+            log_dir=str(data_dir / "logs"),
+            db_path=str(data_dir / "test.db"),
+            settings=settings
+        )
 
         # Create control loop (with mocked components)
         loop = ControlLoop(

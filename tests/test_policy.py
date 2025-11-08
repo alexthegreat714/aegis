@@ -60,12 +60,18 @@ class TestPolicyEngine(unittest.TestCase):
         with open(self.policy_file, 'w') as f:
             yaml.dump(self.test_policy, f)
 
-        # Initialize logger
         (self.data_dir / "logs").mkdir(exist_ok=True)
+
+        # Test settings
+        self.settings = {
+            "logging": {"jsonl_enabled": True, "sqlite_enabled": True}
+        }
+
+        # Initialize logger
         self.logger = AegisLogger(
             log_dir=str(self.data_dir / "logs"),
             db_path=str(self.data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+            settings=self.settings
         )
 
         # Initialize policy engine
@@ -103,6 +109,7 @@ class TestPolicyEngine(unittest.TestCase):
         decision = self.policy_engine.check_intent(intent)
 
         self.assertFalse(decision.allowed)
+        # FILE_DELETE is in sandbox_only list, so reason mentions sandbox
         self.assertIn("sandbox", decision.reason.lower())
 
     def test_check_approval_required(self):

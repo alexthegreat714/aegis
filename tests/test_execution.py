@@ -28,22 +28,23 @@ class TestActionExecution(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.data_dir = Path(self.temp_dir) / "data"
         self.data_dir.mkdir()
-
-        # Initialize logger
         (self.data_dir / "logs").mkdir(exist_ok=True)
-        self.logger = AegisLogger(
-            log_dir=str(self.data_dir / "logs"),
-            db_path=str(self.data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
-        )
 
         # Test settings
         self.settings = {
             "automation": {
                 "action_delay_ms": 10,
                 "screenshot_dir": str(self.data_dir / "screenshots")
-            }
+            },
+            "logging": {"jsonl_enabled": True, "sqlite_enabled": True}
         }
+
+        # Initialize logger
+        self.logger = AegisLogger(
+            log_dir=str(self.data_dir / "logs"),
+            db_path=str(self.data_dir / "test.db"),
+            settings=self.settings
+        )
 
     def test_desktop_automation_dry_run_mode(self):
         """Test that dry_run mode does not change system state."""

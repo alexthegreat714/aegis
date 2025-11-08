@@ -25,13 +25,18 @@ class TestIntentParser(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.data_dir = Path(self.temp_dir) / "data"
         self.data_dir.mkdir()
+        (self.data_dir / "logs").mkdir(exist_ok=True)
+
+        # Test settings
+        self.settings = {
+            "logging": {"jsonl_enabled": True, "sqlite_enabled": True}
+        }
 
         # Initialize logger
-        (self.data_dir / "logs").mkdir(exist_ok=True)
         self.logger = AegisLogger(
             log_dir=str(self.data_dir / "logs"),
             db_path=str(self.data_dir / "test.db"),
-            settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+            settings=self.settings
         )
 
         # Initialize parser
