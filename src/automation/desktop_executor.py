@@ -58,7 +58,12 @@ class DesktopExecutor:
 
         # Initialize backends
         try:
-            self.uia_backend = UIAutomationBackend(dry_run=dry_run)
+            # Enable OCR for button detection
+            self.uia_backend = UIAutomationBackend(
+                dry_run=dry_run,
+                ocr_enabled=True,
+                ocr_confidence_threshold=0.80
+            )
         except Exception as e:
             logger.warning(f"UIA backend not available: {e}")
             self.uia_backend = None

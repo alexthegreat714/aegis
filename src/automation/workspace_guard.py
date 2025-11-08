@@ -163,6 +163,171 @@ class WorkspaceGuard:
 
         return True
 
+    def get_current_branch(self) -> Optional[str]:
+        """
+        Get current git branch.
+
+        Returns:
+            Branch name or None if not a git repo
+        """
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=self.expected_repo,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            branch = result.stdout.strip()
+            logger.debug(f"Current branch: {branch}")
+            return branch
+
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Could not determine current branch: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error getting branch: {e}")
+            return None
+
+    def ensure_branch(self, branch: str, create: bool = False) -> bool:
+        """
+        Ensure repository is on specified branch.
+
+        Args:
+            branch: Target branch name
+            create: If True, create branch if it doesn't exist
+
+        Returns:
+            True if on correct branch (or switched successfully)
+
+        Raises:
+            AssertionError: If can't switch to branch
+        """
+        current = self.get_current_branch()
+
+        if current == branch:
+            logger.info(f"[OK] On correct branch: {branch}")
+            return True
+
+        logger.warning(f"[X] Branch mismatch: current={current}, expected={branch}")
+
+        # Attempt to switch
+        try:
+            logger.info(f"Switching to branch: {branch}")
+
+            # Check if branch exists
+            result = subprocess.run(
+                ["git", "rev-parse", "--verify", branch],
+                cwd=self.expected_repo,
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode != 0 and create:
+                # Create new branch
+                logger.info(f"Creating new branch: {branch}")
+                subprocess.run(
+                    ["git", "checkout", "-b", branch],
+                    cwd=self.expected_repo,
+                    check=True
+                )
+            else:
+                # Switch to existing branch
+                subprocess.run(
+                    ["git", "checkout", branch],
+                    cwd=self.expected_repo,
+                    check=True
+                )
+
+            logger.info(f"Switched to branch: {branch}")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to switch to branch {branch}: {e}"
+            logger.error(error_msg)
+            raise AssertionError(error_msg)
+
+    def is_clean_tree(self) -> bool:
+        """
+        Check if working tree is clean (no uncommitted changes).
+
+        Returns:
+            True if working tree is clean
+        """
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=self.expected_repo,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            # Empty output means clean tree
+            is_clean = len(result.stdout.strip()) == 0
+
+            if is_clean:
+                logger.debug("Working tree is clean")
+            else:
+                logger.debug(f"Working tree has changes:\n{result.stdout}")
+
+            return is_clean
+
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Could not check tree status: {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"Error checking tree status: {e}")
+            return False
+
+    def ensure_clean_tree(self, stash: bool = True) -> bool:
+        """
+        Ensure working tree is clean.
+
+        Args:
+            stash: If True, stash uncommitted changes; if False, reset hard
+
+        Returns:
+            True if tree is clean (or was cleaned successfully)
+
+        Raises:
+            AssertionError: If can't clean tree
+        """
+        if self.is_clean_tree():
+            logger.info("[OK] Working tree is clean")
+            return True
+
+        logger.warning("[X] Working tree has uncommitted changes")
+
+        try:
+            if stash:
+                logger.info("Stashing uncommitted changes...")
+                subprocess.run(
+                    ["git", "stash", "push", "-u", "-m", "Aegis auto-stash before automation"],
+                    cwd=self.expected_repo,
+                    check=True
+                )
+                logger.info("Changes stashed successfully")
+            else:
+                logger.warning("Resetting working tree (HARD RESET)...")
+                subprocess.run(
+                    ["git", "reset", "--hard", "HEAD"],
+                    cwd=self.expected_repo,
+                    check=True
+                )
+                logger.info("Working tree reset")
+
+            # Verify clean
+            if not self.is_clean_tree():
+                raise AssertionError("Working tree still dirty after cleanup")
+
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to clean working tree: {e}"
+            logger.error(error_msg)
+            raise AssertionError(error_msg)
+
     def get_workspace_info(self) -> dict:
         """
         Get workspace information for logging.
@@ -174,5 +339,7 @@ class WorkspaceGuard:
             "expected_repo": str(self.expected_repo),
             "expected_exists": self.expected_repo.exists(),
             "expected_is_git": (self.expected_repo / ".git").exists(),
+            "current_branch": self.get_current_branch(),
+            "is_clean": self.is_clean_tree(),
             "last_check": self.last_check_result
         }

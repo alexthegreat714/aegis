@@ -26,7 +26,9 @@
       "Bash(git merge:*)",
       "Bash(git cherry-pick:*)",
       "Bash(git tag:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(where:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

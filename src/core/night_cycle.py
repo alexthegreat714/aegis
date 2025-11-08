@@ -18,6 +18,10 @@ from typing import Optional, List, Dict, Any
 from cli.revision import RevisionSystem
 from claude.vscode_session import ClaudeVSCodeSession
 from claude.prompts import build_night_cycle_prompt, build_repo_summary
+from claude.limit_guard import SessionLimitDetector
+from automation.desktop_executor import DesktopExecutor
+from automation.workspace_guard import WorkspaceGuard
+from automation.actions import WaitButtonAction, ClickButtonAction
 
 
 logger = logging.getLogger(__name__)
@@ -34,7 +38,9 @@ class NightCycle:
     def __init__(
         self,
         repo_root: Path,
-        settings: Optional[Dict[str, Any]] = None
+        settings: Optional[Dict[str, Any]] = None,
+        use_desktop: bool = False,
+        dry_run: bool = False
     ):
         """
         Initialize night cycle manager.
@@ -42,12 +48,31 @@ class NightCycle:
         Args:
             repo_root: Path to repository root
             settings: Configuration dictionary
+            use_desktop: Enable desktop automation for button clicking
+            dry_run: Dry-run mode for desktop actions
         """
         self.repo_root = Path(repo_root)
         self.settings = settings or {}
+        self.use_desktop = use_desktop
+        self.dry_run = dry_run
 
         # Initialize revision system
         self.rev_system = RevisionSystem(repo_root=self.repo_root)
+
+        # Initialize session limit detector
+        self.limit_detector = SessionLimitDetector(config=self.settings)
+
+        # Initialize desktop automation (if enabled)
+        self.desktop = None
+        self.workspace_guard = None
+        if use_desktop:
+            screenshot_dir = self.repo_root / ".aegis_revisions" / "screenshots"
+            self.desktop = DesktopExecutor(
+                repo_root=self.repo_root,
+                dry_run=dry_run,
+                screenshot_dir=screenshot_dir
+            )
+            self.workspace_guard = WorkspaceGuard(expected_repo=self.repo_root)
 
         # Cycle state
         self.goal = None
@@ -55,6 +80,7 @@ class NightCycle:
         self.failures = []
 
         logger.info(f"NightCycle initialized for {self.repo_root}")
+        logger.info(f"  Desktop automation: {'enabled' if use_desktop else 'disabled'}")
 
     def run_cycle(
         self,
@@ -171,6 +197,13 @@ class NightCycle:
             # Step 3: Send to Claude and get response
             logger.info(f"[3/5] Sending to Claude via VS Code...")
 
+            # Check for session limit block
+            blocked_state = self.limit_detector.load_blocked_state()
+            if blocked_state and not self.limit_detector.should_resume(blocked_state):
+                logger.warning("  Claude session limit active - waiting for reset...")
+                self.limit_detector.wait_for_reset(blocked_state)
+                self.limit_detector.clear_blocked_state()
+
             with ClaudeVSCodeSession(
                 rev_id=rev_id,
                 revisions_root=self.repo_root / "revisions",
@@ -184,20 +217,53 @@ class NightCycle:
 
                 logger.info(f"  Reply received ({len(reply)} chars)")
 
+                # Check for session limit in reply
+                if self.limit_detector.detect_limit_in_text(reply):
+                    logger.warning("  Session limit detected in Claude's reply")
+                    self.limit_detector.save_blocked_state(
+                        revision_id=rev_id,
+                        prompt=prompt,
+                        metadata={"goal": self.goal, "round": round_num}
+                    )
+                    result["failure_reason"] = "Claude session limit reached"
+                    return result
+
             # Save reply to revision
             reply_file = (
                 self.repo_root / ".aegis_revisions" / rev_id / "reply.txt"
             )
             reply_file.write_text(reply, encoding='utf-8')
 
+            # Step 3.5: Apply changes with desktop automation (if enabled)
+            if self.use_desktop and self.desktop:
+                logger.info(f"[3.5/5] Waiting for Apply Changes button...")
+
+                # Wait for button to appear
+                wait_action = WaitButtonAction(label="Apply Changes", timeout=30)
+                wait_result = self.desktop.execute(wait_action)
+
+                if wait_result["success"]:
+                    logger.info("  Clicking Apply Changes button...")
+                    click_action = ClickButtonAction(label="Apply Changes")
+                    click_result = self.desktop.execute(click_action)
+
+                    if click_result["success"]:
+                        logger.info("  Changes applied automatically")
+                        import time
+                        time.sleep(2)  # Wait for changes to be written
+                    else:
+                        logger.warning("  Failed to click Apply Changes - continuing manually")
+                        input("\nPress Enter when code changes are applied...")
+                else:
+                    logger.warning("  Apply Changes button not found - continuing manually")
+                    input("\nPress Enter when code changes are applied...")
+            else:
+                # Manual mode
+                logger.warning("  Manual step required: Apply Claude's code changes before tests")
+                input("\nPress Enter when code changes are applied and ready for testing...")
+
             # Step 4: Run tests
             logger.info(f"[4/5] Running tests...")
-
-            # NOTE: This assumes user has manually applied Claude's suggested changes
-            # A more advanced version would parse code blocks from reply and apply them
-            logger.warning("  Manual step required: Apply Claude's code changes before tests")
-
-            input("\nPress Enter when code changes are applied and ready for testing...")
 
             # Run tests via revision system
             approve_result = self.rev_system.cmd_approve(rev_id)

@@ -1,0 +1,73 @@
+# Aegis Configuration File
+# Phase D+N: Desktop Automation + Autonomous Night Agent
+
+# Claude API Configuration
+claude:
+  # Daily session limit reset hour (UTC, 0-23)
+  daily_reset_hour: 0
+
+  # Buffer time after reset before resuming (minutes)
+  resume_buffer_minutes: 2
+
+  # Text patterns that indicate session limit reached
+  limiter_match_text:
+    - "session limit reached"
+    - "resets 12am"
+    - "quota exceeded"
+    - "try again later"
+    - "rate limit"
+    - "daily limit"
+
+# Desktop Automation Configuration
+automation:
+  # Target branch for automation (will auto-switch if needed)
+  target_branch: "master"
+
+  # OCR confidence threshold for button detection (0.0-1.0)
+  ocr_confidence_threshold: 0.80
+
+  # Allowed application windows for automation
+  allowed_windows:
+    - "Visual Studio Code"
+    - "Command Prompt"
+    - "PowerShell"
+
+  # Screenshot capture settings
+  screenshots:
+    enabled: true
+    capture_all_actions: true
+    directory: ".aegis_revisions/screenshots"
+
+# Night Agent Configuration
+night_agent:
+  # Default maximum goals per run
+  default_max_goals: 5
+
+  # Default maximum rounds per goal
+  default_max_rounds: 3
+
+  # Auto-approve passing revisions (use with caution)
+  auto_approve: false
+
+  # Build docs directory
+  build_docs_dir: "docs/builds"
+
+  # Reports output directory
+  reports_dir: "reports"
+
+# Workspace Guard Settings
+workspace:
+  # Automatically stash uncommitted changes
+  auto_stash: true
+
+  # Auto-switch to target branch
+  auto_switch_branch: true
+
+  # Require clean working tree before automation
+  require_clean_tree: true
+
+# Logging
+logging:
+  db_path: "data/aegis.db"
+  enable_jsonl: true
+  level: "INFO"

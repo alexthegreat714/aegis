@@ -182,6 +182,37 @@ For log inspection, use: python aegis_inspect.py
     night_parser.add_argument('--rounds', type=int, default=3, help='Maximum rounds')
     night_parser.add_argument('--auto', action='store_true', help='No confirmation between rounds')
 
+    # Desktop automation subcommands
+    desktop_parser = subparsers.add_parser('desktop', help='Desktop automation testing')
+    desktop_subparsers = desktop_parser.add_subparsers(dest='desktop_command', help='Desktop commands')
+
+    # desktop test
+    test_parser = desktop_subparsers.add_parser('test', help='Run desktop automation tests')
+    test_parser.add_argument('--live', action='store_true', help='Run live tests (not dry-run)')
+
+    # desktop screenshot
+    screenshot_parser = desktop_subparsers.add_parser('screenshot', help='Capture desktop screenshot')
+    screenshot_parser.add_argument('--label', type=str, default='manual', help='Screenshot label')
+
+    # Night agent subcommands
+    agent_parser = subparsers.add_parser('night_agent', help='Autonomous night agent')
+    agent_subparsers = agent_parser.add_subparsers(dest='agent_command', help='Agent commands')
+
+    # night_agent run
+    run_parser = agent_subparsers.add_parser('run', help='Run autonomous night agent')
+    run_parser.add_argument('--max-goals', type=int, default=5, help='Maximum goals to attempt')
+    run_parser.add_argument('--max-rounds', type=int, default=3, help='Maximum rounds per goal')
+    run_parser.add_argument('--auto', action='store_true', help='Auto-approve passing revisions')
+    run_parser.add_argument('--dry-run', action='store_true', help='Dry-run mode (simulation)')
+
+    # night_agent report
+    report_parser = agent_subparsers.add_parser('report', help='View night agent report')
+    report_parser.add_argument('--last', action='store_true', default=True, help='Show last report')
+    report_parser.add_argument('--all', dest='last', action='store_false', help='List all reports')
+
+    # night_agent clear_backlog
+    agent_subparsers.add_parser('clear_backlog', help='Clear build document backlog')
+
     args = parser.parse_args()
 
     # Handle revision commands
@@ -203,6 +234,44 @@ For log inspection, use: python aegis_inspect.py
     if args.command == 'night_cycle':
         from cli.night_cycle_cli import main as night_cycle_main
         return night_cycle_main(args)
+
+    # Handle desktop commands
+    if args.command == 'desktop':
+        from cli.desktop_cli import cmd_desktop_test, cmd_desktop_screenshot
+        if args.desktop_command == 'test':
+            cmd_desktop_test(dry_run=not args.live)
+            return 0
+        elif args.desktop_command == 'screenshot':
+            cmd_desktop_screenshot(label=args.label)
+            return 0
+        else:
+            print("Error: Unknown desktop command")
+            return 1
+
+    # Handle night_agent commands
+    if args.command == 'night_agent':
+        from cli.night_agent_cli import (
+            cmd_night_agent_run,
+            cmd_night_agent_report,
+            cmd_night_agent_clear_backlog
+        )
+        if args.agent_command == 'run':
+            cmd_night_agent_run(
+                max_goals=args.max_goals,
+                max_rounds=args.max_rounds,
+                auto_approve=args.auto,
+                dry_run=args.dry_run
+            )
+            return 0
+        elif args.agent_command == 'report':
+            cmd_night_agent_report(last=args.last)
+            return 0
+        elif args.agent_command == 'clear_backlog':
+            cmd_night_agent_clear_backlog()
+            return 0
+        else:
+            print("Error: Unknown night_agent command")
+            return 1
 
     # Initialize config
     config = ConfigLoader(config_path=args.config)
