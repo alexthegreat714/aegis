@@ -84,6 +84,19 @@ class ConfigLoader:
         """
         return self.reload()
 
+    def load(self) -> Dict[str, Any]:
+        """
+        Deprecated alias for to_dict(), kept for backwards compatibility.
+
+        Returns:
+            Configuration dictionary
+
+        Note:
+            Use to_dict() instead. This method exists for compatibility
+            with external code that may call config_loader.load().
+        """
+        return self.to_dict()
+
     def get(self, key_path: str, default: Any = None) -> Any:
         """
         Get config value using dot notation.

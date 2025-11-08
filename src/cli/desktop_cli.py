@@ -135,7 +135,7 @@ def cmd_desktop_focus_test(repo_root: Optional[Path] = None) -> int:
 
     # Load configuration
     config_loader = ConfigLoader(repo_root / "config" / "settings.yaml")
-    settings = config_loader.load()
+    settings = config_loader.to_dict()
 
     # Initialize focus guard
     print("[1/2] Bringing VS Code to foreground...")
