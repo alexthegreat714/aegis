@@ -11,6 +11,7 @@ Usage:
     python aegis.py --replay <uuid>    # Replay past session
     python aegis.py --test-connection  # Test subsystems
     python aegis.py --cycles 50        # Run with custom cycle limit
+    python aegis.py revision new "goal"  # Create revision snapshot
 """
 
 import sys
@@ -52,6 +53,10 @@ Operation Modes:
     Verify all subsystems are operational
     Example: python aegis.py --test-connection
 
+  Revision Mode (revision <subcommand>)
+    Manage code revisions with full file snapshots
+    Example: python aegis.py revision new "Add feature X"
+
 Configuration:
   Edit config/settings.yaml to customize behavior
   Config supports hot-reload during execution
@@ -59,6 +64,9 @@ Configuration:
 For log inspection, use: python aegis_inspect.py
         """
     )
+
+    # Create subparsers for different commands
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
     # Mode selection (mutually exclusive)
     mode_group = parser.add_mutually_exclusive_group()
@@ -111,7 +119,42 @@ For log inspection, use: python aegis_inspect.py
         help='Path to config file (default: config/settings.yaml)'
     )
 
+    # Revision subcommands
+    revision_parser = subparsers.add_parser('revision', help='Manage code revisions')
+    revision_subparsers = revision_parser.add_subparsers(dest='revision_command', help='Revision commands')
+
+    # revision new
+    new_parser = revision_subparsers.add_parser('new', help='Create new revision')
+    new_parser.add_argument('goal', type=str, help='Description of revision goal')
+
+    # revision status
+    revision_subparsers.add_parser('status', help='Show latest revision status')
+
+    # revision list
+    revision_subparsers.add_parser('list', help='List all revisions')
+
+    # revision approve
+    approve_parser = revision_subparsers.add_parser('approve', help='Approve revision (strict test validation)')
+    approve_parser.add_argument('rev_id', type=str, help='Revision ID to approve')
+
+    # revision discard
+    discard_parser = revision_subparsers.add_parser('discard', help='Discard revision')
+    discard_parser.add_argument('rev_id', type=str, help='Revision ID to discard')
+
+    # revision restore
+    restore_parser = revision_subparsers.add_parser('restore', help='Restore revision snapshot to working tree')
+    restore_parser.add_argument('rev_id', type=str, help='Revision ID to restore')
+
+    # revision diff
+    diff_parser = revision_subparsers.add_parser('diff', help='Show diff summary for revision')
+    diff_parser.add_argument('rev_id', type=str, help='Revision ID to diff')
+
     args = parser.parse_args()
+
+    # Handle revision commands
+    if args.command == 'revision':
+        from cli.revision import main as revision_main
+        return revision_main(args)
 
     # Initialize config
     config = ConfigLoader(config_path=args.config)

@@ -1,0 +1,13 @@
+{
+  "rev_id": "rev_0001",
+  "goal": "Seed: enable revision framework",
+  "created_utc": "2025-11-08T03:03:40.351897Z",
+  "head_commit": "5095dc6",
+  "status": "draft",
+  "files": [
+    ".gitignore",
+    "aegis.py",
+    "tests\\test_revisions.py"
+  ],
+  "test_summary": null
+}

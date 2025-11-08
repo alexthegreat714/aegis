@@ -24,7 +24,9 @@
       "Bash(python:*)",
       "Bash(git commit:*)",
       "Bash(git merge:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(git tag:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

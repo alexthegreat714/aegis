@@ -36,3 +36,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Aegis Revisions (snapshots are local-only)
+.aegis_revisions/
