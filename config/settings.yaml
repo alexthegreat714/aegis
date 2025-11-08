@@ -40,3 +40,26 @@ assist:
   enabled: false
   require_confirmation: true
   verbose: true
+
+# VS Code Automation
+vscode:
+  exe_path: "code"  # VS Code executable (resolved via PATH on Windows)
+  window_title_hint: "Visual Studio Code"
+  claude_new_chat_cmd: "Claude: New Chat"
+  input_focus_pause_ms: 300
+  type_pause_ms: 10
+  paste_mode: true
+  selection_copy_cmd: "Ctrl+C"
+  dry_run: false
+
+# Focus Guard (OCR-based verification)
+focus:
+  method: "ocr"  # OCR-based focus verification
+  retry: 0  # Hard-block policy: no retries
+  save_fail_screenshot: true  # Save screenshots on focus failures
+  ocr_target_phrases:
+    - "send a message"
+    - "ask claude"
+    - "message claude"
+    - "type a message"
+    - "chat with claude"

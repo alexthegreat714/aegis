@@ -82,6 +82,10 @@ class VSCodeAutomator:
         self.app = None
         self.window = None
 
+        # Initialize focus guard for safe pasting
+        from desktop.focus_guard import FocusGuard
+        self.focus_guard = FocusGuard(logger_instance=logger, settings=self.settings)
+
         logger.info(f"VSCodeAutomator initialized (dry_run={self.dry_run})")
 
     def _sleep(self, ms: int):
@@ -276,6 +280,11 @@ class VSCodeAutomator:
         Args:
             text: Text to paste
         """
+        # Focus guard: verify VS Code foreground and Claude input ready
+        self.focus_guard.require_vscode_foreground()
+        meta = self.focus_guard.require_claude_input_ready()
+        logger.info(f"Focus verification passed: {meta}")
+
         def _paste():
             pyperclip.copy(text)
             pyautogui.hotkey('ctrl', 'v')
@@ -297,6 +306,11 @@ class VSCodeAutomator:
 
     def submit(self):
         """Submit current input (press Enter)."""
+        # Focus guard: verify VS Code foreground and Claude input ready
+        self.focus_guard.require_vscode_foreground()
+        meta = self.focus_guard.require_claude_input_ready()
+        logger.info(f"Focus verification passed: {meta}")
+
         def _submit():
             pyautogui.press('enter')
             self._sleep(500)

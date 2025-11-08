@@ -194,6 +194,9 @@ For log inspection, use: python aegis_inspect.py
     screenshot_parser = desktop_subparsers.add_parser('screenshot', help='Capture desktop screenshot')
     screenshot_parser.add_argument('--label', type=str, default='manual', help='Screenshot label')
 
+    # desktop focus-test
+    desktop_subparsers.add_parser('focus-test', help='Test OCR focus verification for VS Code Claude input')
+
     # Night agent subcommands
     agent_parser = subparsers.add_parser('night_agent', help='Autonomous night agent')
     agent_subparsers = agent_parser.add_subparsers(dest='agent_command', help='Agent commands')
@@ -237,13 +240,15 @@ For log inspection, use: python aegis_inspect.py
 
     # Handle desktop commands
     if args.command == 'desktop':
-        from cli.desktop_cli import cmd_desktop_test, cmd_desktop_screenshot
+        from cli.desktop_cli import cmd_desktop_test, cmd_desktop_screenshot, cmd_desktop_focus_test
         if args.desktop_command == 'test':
             cmd_desktop_test(dry_run=not args.live)
             return 0
         elif args.desktop_command == 'screenshot':
             cmd_desktop_screenshot(label=args.label)
             return 0
+        elif args.desktop_command == 'focus-test':
+            return cmd_desktop_focus_test()
         else:
             print("Error: Unknown desktop command")
             return 1

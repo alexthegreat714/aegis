@@ -212,20 +212,37 @@ class NightCycle:
                 session.start(goal=self.goal, workdir=self.repo_root)
                 result["prompt_sent"] = True
 
-                prompt_num, reply = session.send_and_fetch(prompt)
-                result["reply_received"] = True
+                try:
+                    prompt_num, reply = session.send_and_fetch(prompt)
+                    result["reply_received"] = True
 
-                logger.info(f"  Reply received ({len(reply)} chars)")
+                    logger.info(f"  Reply received ({len(reply)} chars)")
 
-                # Check for session limit in reply
-                if self.limit_detector.detect_limit_in_text(reply):
-                    logger.warning("  Session limit detected in Claude's reply")
-                    self.limit_detector.save_blocked_state(
-                        revision_id=rev_id,
-                        prompt=prompt,
-                        metadata={"goal": self.goal, "round": round_num}
-                    )
-                    result["failure_reason"] = "Claude session limit reached"
+                    # Check for session limit in reply
+                    if self.limit_detector.detect_limit_in_text(reply):
+                        logger.warning("  Session limit detected in Claude's reply")
+                        self.limit_detector.save_blocked_state(
+                            revision_id=rev_id,
+                            prompt=prompt,
+                            metadata={"goal": self.goal, "round": round_num}
+                        )
+                        result["failure_reason"] = "Claude session limit reached"
+                        return result
+
+                except RuntimeError as e:
+                    # Focus guard blocked the operation (OCR verification failed)
+                    logger.error(f"  Focus guard blocked operation: {e}")
+                    result["failure_reason"] = f"Focus verification failed: {e}"
+
+                    # Check for failure screenshot
+                    ocr_debug_dir = self.repo_root / ".aegis_debug" / "ocr"
+                    if ocr_debug_dir.exists():
+                        screenshots = sorted(ocr_debug_dir.glob("fail_*.png"))
+                        if screenshots:
+                            latest_screenshot = screenshots[-1]
+                            logger.error(f"  Screenshot saved: {latest_screenshot}")
+                            result["screenshot"] = str(latest_screenshot)
+
                     return result
 
             # Save reply to revision

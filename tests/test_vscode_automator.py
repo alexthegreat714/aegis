@@ -83,6 +83,10 @@ class TestVSCodeAutomator:
         settings = {'vscode': {'dry_run': False}}
         automator = VSCodeAutomator(settings=settings)
 
+        # Mock focus guard to pass verification
+        automator.focus_guard.require_vscode_foreground = Mock()
+        automator.focus_guard.require_claude_input_ready = Mock(return_value={'matched': True})
+
         automator.paste_text("test content")
 
         mock_pyperclip.copy.assert_called_with("test content")
@@ -95,6 +99,10 @@ class TestVSCodeAutomator:
 
         settings = {'vscode': {'dry_run': False}}
         automator = VSCodeAutomator(settings=settings)
+
+        # Mock focus guard to pass verification
+        automator.focus_guard.require_vscode_foreground = Mock()
+        automator.focus_guard.require_claude_input_ready = Mock(return_value={'matched': True})
 
         automator.submit()
 
