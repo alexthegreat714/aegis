@@ -10,6 +10,8 @@ Windows-only for now; raises NotImplementedError on other platforms.
 import sys
 import time
 import logging
+import os
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any
 import subprocess
@@ -111,6 +113,58 @@ class VSCodeAutomator:
             logger.error(f"  ✗ {action}: {e}")
             raise
 
+    def _resolve_vscode_cmd(self) -> str:
+        """
+        Resolve VS Code executable path in OS-aware manner.
+
+        On Windows, subprocess.Popen with shell=False cannot launch .cmd files,
+        so we need to explicitly check for code.cmd first.
+
+        Returns:
+            Full path to VS Code executable
+
+        Raises:
+            RuntimeError: If VS Code executable not found
+        """
+        # If exe_path is already a full path that exists, use it
+        if os.path.isfile(self.exe_path):
+            logger.debug(f"Using configured exe_path: {self.exe_path}")
+            return self.exe_path
+
+        # Windows-specific resolution
+        if sys.platform == 'win32':
+            # Try code.cmd first (preferred on Windows)
+            code_cmd = shutil.which('code.cmd')
+            if code_cmd:
+                logger.debug(f"Resolved VS Code to: {code_cmd}")
+                return code_cmd
+
+            # Fall back to code.exe
+            code_exe = shutil.which('code.exe')
+            if code_exe:
+                logger.debug(f"Resolved VS Code to: {code_exe}")
+                return code_exe
+
+            # Try the configured exe_path as last resort
+            code_generic = shutil.which(self.exe_path)
+            if code_generic:
+                logger.debug(f"Resolved VS Code to: {code_generic}")
+                return code_generic
+
+        else:
+            # Linux/macOS: normal code lookup
+            code_path = shutil.which(self.exe_path)
+            if code_path:
+                logger.debug(f"Resolved VS Code to: {code_path}")
+                return code_path
+
+        # Not found
+        raise RuntimeError(
+            f"VS Code executable not found. Tried: {self.exe_path}\n"
+            f"Ensure VS Code is installed and 'code' command is on PATH.\n"
+            f"On Windows, check that code.cmd exists in PATH."
+        )
+
     def launch(self, code_path: Optional[str] = None):
         """
         Launch VS Code.
@@ -118,7 +172,10 @@ class VSCodeAutomator:
         Args:
             code_path: Optional path to open in VS Code
         """
-        cmd = [self.exe_path]
+        # Resolve VS Code executable (Windows-safe)
+        vscode_exe = self._resolve_vscode_cmd()
+
+        cmd = [vscode_exe]
         if code_path:
             cmd.append(str(code_path))
 
