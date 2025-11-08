@@ -1,0 +1,14 @@
+﻿DIFF: .gitignore
+DIFF: aegis.py
+DIFF: PHASE3_IMPLEMENTATION.md
+DIFF: README.md
+DIFF: requirements.txt
+DIFF: config\settings.yaml
+DIFF: data\aegis.db
+DIFF: src\__init__.py
+DIFF: src\aegis_logging\logger.py
+DIFF: src\aegis_logging\__init__.py
+DIFF: src\core\control_loop.py
+DIFF: src\core\__init__.py
+DIFF: src\utils\__init__.py
+DIFF: tests\__init__.py

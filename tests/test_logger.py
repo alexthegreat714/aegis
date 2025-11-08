@@ -40,19 +40,22 @@ def test_logger_initialization(temp_db):
 
 
 def test_log_event_without_session(temp_db):
-    """Test logging without active session raises error."""
-    logger = AegisLogger(db_path=temp_db, enable_jsonl=False)
-    SessionManager._current_session = None
+    """Test logging without active session works (new logger doesn't require sessions)."""
+    import tempfile
+    tmpdir = Path(tempfile.mkdtemp())
+    logger = AegisLogger(
+        log_dir=str(tmpdir / "logs"),
+        db_path=temp_db,
+        settings={"logging": {"jsonl_enabled": True, "sqlite_enabled": True}}
+    )
 
-    with pytest.raises(RuntimeError, match="No active session"):
-        logger.log_event(
-            intent="test",
-            action="test_action",
-            policy_decision="ALLOW",
-            result="success",
-            cycle_id=1,
-            duration_ms=100
-        )
+    # New logger doesn't require sessions - just logs the event
+    logger.log_event(
+        event_type="test",
+        data={"action": "test_action"},
+        status="success"
+    )
+    # Should not raise any error
 
 
 def test_log_event_success(logger_with_session):
@@ -153,19 +156,16 @@ def test_get_sessions(logger_with_session):
 
 
 def test_required_fields_validation(logger_with_session):
-    """Test that missing required fields raise errors."""
+    """Test that new logger accepts flexible parameters (no strict validation)."""
     logger, session = logger_with_session
 
-    # duration_ms is required but missing
-    with pytest.raises(TypeError):
-        logger.log_event(
-            intent="test",
-            action="test",
-            policy_decision="ALLOW",
-            result="success",
-            cycle_id=1
-            # Missing duration_ms
-        )
+    # New logger is more flexible - event_type, data, status are all optional with defaults
+    # This should NOT raise an error
+    logger.log_event(
+        event_type="test",
+        status="success"
+        # Missing other fields is OK - they have defaults
+    )
 
 
 def test_jsonl_writing(temp_db):

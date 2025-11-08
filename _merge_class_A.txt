@@ -1,0 +1,23 @@
+﻿
+=== A) FILES ONLY IN ENGINEERING (KEEP) ===
+.claude\settings.local.json
+aegis_inspect.py
+aegis_old.py
+data\aegis_events.jsonl
+DAY_6_DELIVERY.md
+DELIVERY_SUMMARY.md
+PHASE_B_COMPLETE.md
+pytest.ini
+QUICK_START.md
+src\aegis_logging\log_inspector.py
+src\aegis_logging\session.py
+src\core\control_loop_old.py
+src\observers\__init__.py
+src\policy\__init__.py
+src\utils\config_loader.py
+src\utils\health_monitor.py
+tests\test_config.py
+tests\test_heartbeat.py
+tests\test_log_inspector.py
+tests\test_logger.py
+tests\test_session.py

@@ -192,8 +192,25 @@ class TestControlLoop(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+        import time
+
+        # Close database connections
+        if hasattr(self, 'logger') and hasattr(self.logger, 'db_logger'):
+            if hasattr(self.logger.db_logger, 'conn'):
+                try:
+                    self.logger.db_logger.conn.close()
+                except:
+                    pass
+
+        # Give Windows time to release file handles
+        time.sleep(0.1)
+
         if Path(self.temp_dir).exists():
-            shutil.rmtree(self.temp_dir)
+            try:
+                shutil.rmtree(self.temp_dir)
+            except PermissionError:
+                # Windows may still have file handles open, skip cleanup
+                pass
 
 
 if __name__ == "__main__":

@@ -381,3 +381,37 @@ class AegisLogger:
             conn.commit()
 
         return deleted
+
+    def log_llm_call(
+        self,
+        model: str,
+        prompt: str,
+        response: str,
+        tokens_used: int = 0,
+        **kwargs
+    ):
+        """
+        Log LLM interaction.
+
+        Args:
+            model: Model name/identifier
+            prompt: Input prompt
+            response: Model response
+            tokens_used: Token count
+            **kwargs: Additional parameters (absorbed safely)
+        """
+        # Log as a special event type
+        self.log_event(
+            intent="llm_interaction",
+            action=f"call_{model}",
+            policy_decision="ALLOW",
+            result="success",
+            cycle_id=kwargs.get("cycle_id", 0),
+            duration_ms=kwargs.get("duration_ms", 0),
+            metadata={
+                "model": model,
+                "prompt": prompt[:500],  # Truncate for storage
+                "response": response[:500],  # Truncate for storage
+                "tokens_used": tokens_used
+            }
+        )

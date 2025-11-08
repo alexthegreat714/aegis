@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(dir:*)",
+      "Bash(_local_tree.txt)",
+      "Bash(forfiles /S /M *.* /C \"cmd /c echo @fdate @ftime @path @fsize\")",
+      "Bash(_local_files.txt)",
+      "Bash(powershell -NoProfile -Command \"cd 'C:\\Users\\blyth\\Desktop\\Engineering\\aegis'; Write-Output 'PWD:'; Get-Location; git rev-parse --is-inside-work-tree\":*)",
+      "Bash(powershell:*)",
+      "Bash(_hash_compare.txt)",
+      "Bash(git remote add:*)",
+      "Bash(_origin_diff.txt)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(pytest:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAegis Phase 3 Baseline Merge - Users→Engineering unification\n\nMerged missing core modules from Users repo into Engineering repo:\n- Added complete automation stack (desktop, vscode, windows, executor)\n- Added policy engine, action planner, and intent system\n- Added OWUI client integration\n- Added system observer and reporting modules\n- Added comprehensive test suite (151/152 tests passing)\n- Updated logger.py and control_loop.py for backward compatibility\n\nFiles merged: 49 new modules from Users repo\nTests status: 151 passing, 1 failing (legacy API incompatibility)\nCritical files validated: All 14 required files present\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(for f in tests/test_*.py)",
+      "Bash(do echo \"$f:\")",
+      "Bash(done)",
+      "Bash(python:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
+      "Bash(git cherry-pick:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

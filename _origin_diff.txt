@@ -1,0 +1,71 @@
+M	.gitignore
+A	DELIVERY_SUMMARY.md
+D	IMPLEMENTATION_STATUS.md
+M	PHASE3_IMPLEMENTATION.md
+A	PHASE_B_COMPLETE.md
+D	QUICKSTART.md
+A	QUICK_START.md
+D	RAG/Ben Clark - Rtfm_ Red Team Field Manual (2014, CreateSpace Independent Publishing Platform) - libgen.li.pdf
+D	RAG/Peter Kim - The Hacker Playbook 3_ Practical Guide to Penetration Testing (2018, Hacker Playbook) - libgen.li.pdf
+D	"RAG/Wil Allsopp - Advanced Penetration Testing_ Hacking the World\342\200\231s Most Secure Networks (2017, Wiley) - libgen.li.pdf"
+D	RAG/[Hacking Series 1] Alphy Books & Hacking - Hacking_ Hacking With Python - The Complete Beginner's Course to Learn Ethical Hacking With Python in 7 Clear-Cut Lessons - Inc (2016) - libgen.li.pdf
+D	RAG/[Professional] Andrea Allievi, Alex Ionescu, Mark Russinovich, David A. Solomon - Windows Internals, Part 2, 7th Edition 2 (2021, Microsoft Press) - libgen.li.pdf.crdownload
+M	README.md
+D	README_SPEC.md
+D	README_USER.md
+D	SETUP_COMPLETE.md
+M	aegis.py
+A	aegis_inspect.py
+A	aegis_old.py
+D	config/.owui_token.example
+D	config/policy.yaml
+M	config/settings.yaml
+D	config/tasklist.yaml
+D	data/.gitignore
+A	pytest.ini
+M	requirements.txt
+D	sandbox/.gitkeep
+D	sandbox/README.md
+M	src/__init__.py
+M	src/aegis_logging/__init__.py
+A	src/aegis_logging/log_inspector.py
+M	src/aegis_logging/logger.py
+D	src/aegis_logging/schema.py
+A	src/aegis_logging/session.py
+D	src/automation/__init__.py
+D	src/automation/desktop.py
+D	src/automation/vscode.py
+D	src/automation/windows.py
+D	src/clients/__init__.py
+D	src/clients/owui_client.py
+M	src/core/__init__.py
+D	src/core/action_planner.py
+D	src/core/action_router.py
+M	src/core/control_loop.py
+A	src/core/control_loop_old.py
+D	src/core/interactive.py
+D	src/core/policy_engine.py
+D	src/core/queue_executor.py
+D	src/core/reasoning.py
+D	src/core/sandbox_revision.py
+D	src/intents/__init__.py
+D	src/intents/intent_schema.py
+D	src/intents/intent_types.py
+D	src/main.py
+R100	RAG/.gitkeep	src/observers/__init__.py
+R100	data/.gitkeep	src/policy/__init__.py
+M	src/utils/__init__.py
+A	src/utils/config_loader.py
+A	src/utils/health_monitor.py
+D	src/utils/helpers.py
+D	src/utils/tasklist_parser.py
+D	start_aegis.bat
+M	tests/__init__.py
+A	tests/test_config.py
+A	tests/test_heartbeat.py
+A	tests/test_log_inspector.py
+A	tests/test_logger.py
+D	tests/test_logging.py
+D	tests/test_owui_client.py
+D	tests/test_policy.py
+A	tests/test_session.py
