@@ -1,5 +1,6 @@
 """
-Desktop automation modules.
-"""
+Aegis Desktop Automation Layer.
 
-__all__ = ["DesktopAutomation", "VSCodeAutomation", "WindowsAutomation"]
+Provides safe, auditable desktop automation with workspace control,
+UI automation, and strict safety policies.
+"""

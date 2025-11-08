@@ -1,0 +1,104 @@
+# Aegis Phase D - Desktop Automation Demo Script
+#
+# This script demonstrates the full desktop automation workflow:
+# 1. Launch VS Code at correct repository
+# 2. Assert workspace matches
+# 3. Wait for and click Claude UI buttons
+# 4. Take screenshots for audit trail
+#
+# Usage: python aegis.py automation run revisions/demo_desktop_001.yaml
+
+---
+# Step 1: Launch VS Code at repository root
+- action: desktop.launch
+  params:
+    exe: "code"
+    args: ["C:\\Users\\blyth\\Desktop\\Engineering\\Aegis"]
+    reuse: true
+  timeout: 10
+  description: "Launch VS Code at Aegis repository"
+
+# Step 2: Focus VS Code window
+- action: desktop.focus
+  params:
+    title_hint: "Visual Studio Code"
+  timeout: 5
+  description: "Focus VS Code window"
+
+# Step 3: Assert workspace matches expected repository
+- action: desktop.assert_workspace
+  params:
+    expected: "C:\\Users\\blyth\\Desktop\\Engineering\\Aegis"
+  timeout: 5
+  description: "Verify VS Code workspace is correct"
+
+# Step 4: Assert VS Code window exists
+- action: desktop.assert_window
+  params:
+    title_hint: "Visual Studio Code"
+  timeout: 5
+  description: "Confirm VS Code is running"
+
+# Step 5: Open command palette
+- action: desktop.hotkey
+  params:
+    keys: ["ctrl", "shift", "p"]
+  timeout: 2
+  description: "Open VS Code command palette"
+
+# Step 6: Wait for Claude: New Chat button/command
+- action: desktop.wait_button
+  params:
+    label: "Claude: New Chat"
+  timeout: 10
+  description: "Wait for Claude extension to be ready"
+
+# Step 7: Click to start new Claude chat
+- action: desktop.click_button
+  params:
+    label: "Claude: New Chat"
+  timeout: 8
+  description: "Start new Claude conversation"
+
+# Step 8: Take screenshot of Claude panel
+- action: desktop.screenshot
+  params:
+    path: "logs/screenshots/claude_panel_opened.png"
+  description: "Capture Claude panel state"
+
+# Step 9: Wait for potential "Apply Changes" button
+#         (appears after Claude suggests code changes)
+- action: desktop.wait_button
+  params:
+    label: "Apply Changes"
+  timeout: 60
+  description: "Wait for Claude to suggest changes"
+
+# Step 10: Click Apply Changes button
+- action: desktop.click_button
+  params:
+    label: "Apply Changes"
+  timeout: 8
+  description: "Apply Claude's suggested code changes"
+
+# Step 11: Take post-apply screenshot
+- action: desktop.screenshot
+  params:
+    path: "logs/screenshots/post_apply_changes.png"
+  description: "Capture state after applying changes"
+
+# Step 12: Save all files
+- action: desktop.hotkey
+  params:
+    keys: ["ctrl", "shift", "s"]
+  timeout: 2
+  description: "Save all modified files"
+
+# Step 13: Final screenshot for audit trail
+- action: desktop.screenshot
+  params:
+    path: "logs/screenshots/automation_complete.png"
+  description: "Final state screenshot"
+
+# Success! All actions completed.
+# Next step: Run pytest to validate changes.
